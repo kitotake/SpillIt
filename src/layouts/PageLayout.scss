@@ -1,0 +1,19 @@
+.si-layout {
+  min-height: 100svh;
+  padding: 24px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  box-sizing: border-box;
+
+  &--center {
+    align-items: center;
+    justify-content: center;
+  }
+
+  &--narrow {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+}
