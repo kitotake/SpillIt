@@ -1,0 +1,74 @@
+.si-lobby {
+  min-height: 100svh;
+  padding: 22px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.si-lobby__header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.si-lobby__meta {
+  display: flex;
+  gap: 18px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.si-lobby__columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.si-lobby__card h2 {
+  margin-top: 0;
+}
+
+.si-lobby__add {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.si-lobby__settings label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  margin-bottom: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.si-lobby__settings input,
+.si-lobby__settings select {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.si-lobby__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.si-lobby__hint {
+  margin-top: 14px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+@media (max-width: 900px) {
+  .si-lobby__columns {
+    grid-template-columns: 1fr;
+  }
+}

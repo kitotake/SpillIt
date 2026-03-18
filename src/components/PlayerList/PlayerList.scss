@@ -1,0 +1,17 @@
+.si-player-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.si-player-list__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.si-player-list__empty {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}

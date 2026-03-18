@@ -1,0 +1,49 @@
+.si-button {
+  cursor: pointer;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  user-select: none;
+}
+
+.si-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 22px rgba(0, 0, 0, 0.16);
+}
+
+.si-button:active {
+  transform: translateY(0);
+  box-shadow: 0 9px 14px rgba(0, 0, 0, 0.18);
+}
+
+.si-button--primary {
+  background: var(--primary);
+  color: white;
+}
+
+.si-button--secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.si-button--danger {
+  background: var(--danger);
+  color: white;
+}
+
+.si-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}

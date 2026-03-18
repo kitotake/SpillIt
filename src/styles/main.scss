@@ -1,0 +1,12 @@
+@use './variables' as vars;
+
+body {
+  background: radial-gradient(circle at top, rgba(255, 255, 255, 0.16), transparent 60%),
+    linear-gradient(135deg, rgba(108, 92, 231, 0.38), rgba(0, 236, 201, 0.12));
+  min-height: 100vh;
+  color: var(--text);
+}
+
+#root {
+  min-height: 100vh;
+}

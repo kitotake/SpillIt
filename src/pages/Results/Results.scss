@@ -1,0 +1,45 @@
+.si-results {
+  min-height: 100svh;
+  padding: 26px 20px 42px;
+  display: grid;
+  place-items: center;
+}
+
+.si-results__card {
+  width: min(720px, 100%);
+  text-align: center;
+}
+
+.si-results__winner {
+  font-size: 18px;
+  margin: 14px 0 18px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.si-results__table {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.si-results__row {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  align-items: center;
+}
+
+.si-results__row--header {
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.si-results__actions {
+  margin-top: 22px;
+}

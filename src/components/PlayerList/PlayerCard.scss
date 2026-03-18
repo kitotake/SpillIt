@@ -1,0 +1,51 @@
+.si-player-card {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: grid;
+  gap: 10px;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.si-player-card:hover {
+  transform: translateY(-3px);
+}
+
+.si-player-card.ready {
+  border-color: rgba(0, 255, 152, 0.7);
+}
+
+.si-player-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.si-player-card__name {
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.si-player-card__ready {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 13px;
+  transition: background 0.2s ease;
+}
+
+.si-player-card__ready:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.si-player-card__meta {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}

@@ -1,0 +1,38 @@
+.si-game {
+  min-height: 100svh;
+  padding: 24px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  align-items: center;
+}
+
+.si-game__top {
+  width: min(820px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.si-game__progress {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 14px;
+}
+
+.si-game__card {
+  width: min(820px, 100%);
+}
+
+.si-game__actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: center;
+}
+
+.si-game__hint {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}

@@ -1,0 +1,29 @@
+.si-timer {
+  position: relative;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.si-timer__bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  transition: width 0.25s ease;
+}
+
+.si-timer__label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+  font-size: 14px;
+}

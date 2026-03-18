@@ -1,0 +1,28 @@
+@use './variables' as vars;
+
+:root {
+  --primary: #{vars.$primary};
+  --secondary: #{vars.$secondary};
+  --danger: #{vars.$danger};
+  --bg: #{vars.$bg};
+  --text: #{vars.$text};
+  --muted: #{vars.$muted};
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+}

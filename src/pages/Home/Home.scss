@@ -1,0 +1,49 @@
+.si-home {
+  display: grid;
+  place-items: center;
+  min-height: 100svh;
+  padding: 24px 20px;
+}
+
+.si-home__card {
+  width: min(560px, 100%);
+  text-align: center;
+}
+
+.si-home__title {
+  margin: 0;
+  font-size: 44px;
+  letter-spacing: -0.02em;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.si-home__subtitle {
+  margin: 10px 0 22px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 16px;
+}
+
+.si-home__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.si-home__join {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+}
+
+.si-home__create {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.si-home__hint {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+}
