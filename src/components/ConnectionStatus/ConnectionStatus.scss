@@ -1,0 +1,31 @@
+.si-conn {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  backdrop-filter: blur(12px);
+  animation: connSlide 0.3s ease both;
+
+  &--connecting {
+    background: rgba(253, 203, 110, 0.2);
+    border: 1px solid rgba(253, 203, 110, 0.5);
+    color: rgba(253, 203, 110, 0.95);
+  }
+
+  &--disconnected,
+  &--error {
+    background: rgba(255, 118, 117, 0.2);
+    border: 1px solid rgba(255, 118, 117, 0.5);
+    color: rgba(255, 118, 117, 0.95);
+  }
+}
+
+@keyframes connSlide {
+  from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}

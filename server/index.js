@@ -1,37 +1,51 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const cors = require('cors');
+/**
+ * server/index.js — Serveur Socket.IO pour Spill It!
+ *
+ * Corrections :
+ *   - Système de host : seul le host peut start/next/reveal
+ *   - Validation playerId sur chaque action
+ *   - Timer côté serveur : force next_question si le client se freeze
+ *   - Reconnexion : restaure le socket d'un joueur existant
+ */
 
-const app = express();
-app.use(cors());
+const express = require('express')
+const http    = require('http')
+const { Server } = require('socket.io')
+const cors   = require('cors')
 
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: '*' },
-});
+const app = express()
+app.use(cors())
+
+const server = http.createServer(app)
+const io = new Server(server, { cors: { origin: '*' } })
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
 /** @type {Map<string, Room>} */
-const rooms = new Map();
+const rooms = new Map()
 
 /**
- * @typedef {{ id: string, name: string, score: number, streak: number,
- *   ready: boolean, answer?: string, guessAnswer?: string, isSpectator?: boolean,
- *   socketId: string }} RoomPlayer
- * @typedef {{ id: string, players: Map<string, RoomPlayer>, phase: string,
- *   questions: any[], questionIndex: number, settings: any,
- *   guessTarget: string|null, history: any[] }} Room
+ * @typedef {{
+ *   id: string, players: Map<string, RoomPlayer>,
+ *   phase: string, questions: any[], questionIndex: number,
+ *   settings: any, guessTarget: string|null, history: any[],
+ *   hostId: string, serverTimer: NodeJS.Timeout|null
+ * }} Room
+ *
+ * @typedef {{
+ *   id: string, name: string, score: number, streak: number,
+ *   ready: boolean, answer?: string, guessAnswer?: string,
+ *   isSpectator?: boolean, socketId: string
+ * }} RoomPlayer
  */
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeId() {
-  return Math.random().toString(36).slice(2, 10);
+  return Math.random().toString(36).slice(2, 10)
 }
 
-function getOrCreateRoom(roomId) {
+function getOrCreate(roomId) {
   if (!rooms.has(roomId)) {
     rooms.set(roomId, {
       id: roomId,
@@ -42,265 +56,273 @@ function getOrCreateRoom(roomId) {
       settings: {},
       guessTarget: null,
       history: [],
-    });
+      hostId: '',
+      serverTimer: null,
+    })
   }
-  return rooms.get(roomId);
+  return rooms.get(roomId)
 }
 
-/** Serialize room without socketId (client doesn't need it) */
-function serializeRoom(room) {
+function serialize(room) {
   return {
-    phase: room.phase,
+    phase:         room.phase,
     questionIndex: room.questionIndex,
-    questions: room.questions,
-    settings: room.settings,
-    guessTarget: room.guessTarget,
-    history: room.history,
+    questions:     room.questions,
+    settings:      room.settings,
+    guessTarget:   room.guessTarget,
+    history:       room.history,
+    hostId:        room.hostId,
     players: [...room.players.values()].map(({ socketId, ...p }) => p),
-  };
+  }
 }
 
-/** Broadcast full room state to everyone in the room */
-function broadcastState(roomId) {
-  const room = rooms.get(roomId);
-  if (!room) return;
-  io.to(roomId).emit('room_state', serializeRoom(room));
+function broadcast(roomId) {
+  const room = rooms.get(roomId)
+  if (!room) return
+  io.to(roomId).emit('room_state', serialize(room))
+}
+
+function isHost(room, playerId) {
+  return room.hostId === playerId
+}
+
+function validatePlayer(room, playerId) {
+  return room.players.has(playerId)
 }
 
 function computeMajority(players) {
-  const active = [...players.values()].filter(p => !p.isSpectator);
-  const yes = active.filter(p => p.answer === 'yes').length;
-  const no = active.filter(p => p.answer === 'no').length;
-  if (yes > no) return 'yes';
-  if (no > yes) return 'no';
-  return 'tie';
+  const active = [...players.values()].filter(p => !p.isSpectator)
+  const yes = active.filter(p => p.answer === 'yes').length
+  const no  = active.filter(p => p.answer === 'no').length
+  return yes > no ? 'yes' : no > yes ? 'no' : 'tie'
+}
+
+// ─── Server-side timer (forces next question after timeout + 3s grace) ────────
+
+function startServerTimer(roomId) {
+  const room = rooms.get(roomId)
+  if (!room) return
+  clearServerTimer(room)
+  const grace = (room.settings.secondsPerQuestion || 12) + 3
+  room.serverTimer = setTimeout(() => {
+    const r = rooms.get(roomId)
+    if (!r || r.phase !== 'game') return
+    advanceQuestion(roomId)
+  }, grace * 1000)
+}
+
+function clearServerTimer(room) {
+  if (room.serverTimer) { clearTimeout(room.serverTimer); room.serverTimer = null }
+}
+
+function advanceQuestion(roomId) {
+  const room = rooms.get(roomId)
+  if (!room) return
+
+  const active = [...room.players.values()].filter(p => !p.isSpectator)
+  const majority = computeMajority(room.players)
+
+  const scorers = [], streakBonuses = []
+  active.forEach(p => {
+    const inMaj  = majority === 'tie' || p.answer === majority
+    const scored = inMaj && p.answer !== undefined
+    const newStreak = scored ? p.streak + 1 : 0
+    const bonus  = scored && newStreak >= 2 ? 1 : 0
+    if (scored) { p.score += 1 + bonus; scorers.push(p.name) }
+    if (bonus)  streakBonuses.push(p.name)
+    p.streak = newStreak
+  })
+
+  const record = {
+    question: room.questions[room.questionIndex],
+    answers:  Object.fromEntries(active.map(p => [p.name, p.answer])),
+    majority, scorers, streakBonuses,
+  }
+  room.history.push(record)
+  room.players.forEach(p => { p.answer = undefined; p.guessAnswer = undefined })
+
+  room.questionIndex++
+  const isEnd = room.questionIndex >= room.questions.length
+
+  if (isEnd) {
+    room.phase = 'results'
+    room.guessTarget = null
+  } else {
+    const canGuess = !room.settings.soloMode && active.length >= 2
+    if (canGuess) {
+      const target = active[Math.floor(Math.random() * active.length)]
+      room.guessTarget = target.id
+      room.phase = 'guess'
+    } else {
+      room.phase = 'game'
+      room.guessTarget = null
+      startServerTimer(roomId)
+    }
+  }
+
+  broadcast(roomId)
 }
 
 // ─── Socket handlers ──────────────────────────────────────────────────────────
 
 io.on('connection', (socket) => {
-  console.log('🔌 Connexion:', socket.id);
 
-  // JOIN ROOM
   socket.on('join_room', ({ roomId, playerName, isSpectator = false }) => {
-    const room = getOrCreateRoom(roomId);
+    const room = getOrCreate(roomId)
 
-    // Reconnect if player name already exists
-    const existing = [...room.players.values()].find(p => p.name === playerName);
+    // Reconnect existing player
+    const existing = [...room.players.values()].find(p => p.name === playerName)
     if (existing) {
-      existing.socketId = socket.id;
-      socket.join(roomId);
-      socket.emit('room_state', serializeRoom(room));
-      socket.emit('joined', { playerId: existing.id, roomId });
-      socket.to(roomId).emit('player_reconnected', { playerId: existing.id });
-      console.log(`[${roomId}] ${playerName} reconnecté`);
-      return;
+      existing.socketId = socket.id
+      socket.join(roomId)
+      socket.data.roomId   = roomId
+      socket.data.playerId = existing.id
+      socket.emit('joined', { playerId: existing.id, roomId, hostId: room.hostId })
+      socket.emit('room_state', serialize(room))
+      socket.to(roomId).emit('player_reconnected', { playerId: existing.id })
+      return
     }
 
     const player = {
-      id: makeId(),
-      name: playerName,
-      score: 0,
-      streak: 0,
-      ready: false,
-      isSpectator,
-      socketId: socket.id,
-    };
+      id: makeId(), name: playerName,
+      score: 0, streak: 0, ready: false,
+      isSpectator, socketId: socket.id,
+    }
+    room.players.set(player.id, player)
 
-    room.players.set(player.id, player);
-    socket.join(roomId);
-    socket.data.roomId = roomId;
-    socket.data.playerId = player.id;
+    // First non-spectator player becomes host
+    if (!room.hostId && !isSpectator) room.hostId = player.id
 
-    // Tell the new player their ID + current state
-    socket.emit('joined', { playerId: player.id, roomId });
-    socket.emit('room_state', serializeRoom(room));
+    socket.join(roomId)
+    socket.data.roomId   = roomId
+    socket.data.playerId = player.id
 
-    // Tell everyone else
-    socket.to(roomId).emit('player_joined', { player: { ...player, socketId: undefined } });
+    socket.emit('joined', { playerId: player.id, roomId, hostId: room.hostId })
+    socket.emit('room_state', serialize(room))
+    socket.to(roomId).emit('player_joined', {
+      player: { ...player, socketId: undefined },
+    })
+  })
 
-    console.log(`[${roomId}] ${playerName} a rejoint (${room.players.size} joueurs)`);
-  });
-
-  // PLAYER READY
   socket.on('player_ready', ({ roomId, playerId, ready }) => {
-    const room = rooms.get(roomId);
-    if (!room) return;
-    const player = room.players.get(playerId);
-    if (player) player.ready = ready;
-    broadcastState(roomId);
-  });
+    const room = rooms.get(roomId)
+    if (!room || !validatePlayer(room, playerId)) return
+    const p = room.players.get(playerId)
+    if (p) p.ready = ready
+    broadcast(roomId)
+  })
 
-  // START GAME
-  socket.on('start_game', ({ roomId, settings, questions }) => {
-    const room = rooms.get(roomId);
-    if (!room) return;
+  socket.on('start_game', ({ roomId, settings, questions, playerId }) => {
+    const room = rooms.get(roomId)
+    if (!room || !isHost(room, playerId)) return   // ← host guard
 
-    room.phase = 'game';
-    room.questions = questions;
-    room.questionIndex = 0;
-    room.settings = settings;
-    room.history = [];
-    room.guessTarget = null;
-
+    room.phase = 'game'
+    room.questions = questions
+    room.questionIndex = 0
+    room.settings = settings
+    room.history = []
+    room.guessTarget = null
     room.players.forEach(p => {
-      p.score = 0;
-      p.streak = 0;
-      p.answer = undefined;
-      p.guessAnswer = undefined;
-      p.ready = false;
-    });
+      p.score = 0; p.streak = 0; p.answer = undefined; p.guessAnswer = undefined; p.ready = false
+    })
+    clearServerTimer(room)
+    startServerTimer(roomId)
+    broadcast(roomId)
+  })
 
-    broadcastState(roomId);
-    console.log(`[${roomId}] Partie démarrée — ${questions.length} questions`);
-  });
-
-  // PLAYER ANSWER
   socket.on('player_answer', ({ roomId, playerId, answer }) => {
-    const room = rooms.get(roomId);
-    if (!room) return;
-    const player = room.players.get(playerId);
-    if (player) player.answer = answer;
+    const room = rooms.get(roomId)
+    if (!room || !validatePlayer(room, playerId)) return
+    const p = room.players.get(playerId)
+    if (p && !p.isSpectator) p.answer = answer
+    io.to(roomId).emit('answer_update', { playerId, answer })
 
-    // Broadcast just the answer update (lighter than full state)
-    io.to(roomId).emit('answer_update', { playerId, answer });
-
-    // Auto-reveal if all active non-spectator players have answered
-    const active = [...room.players.values()].filter(p => !p.isSpectator);
-    const allAnswered = active.every(p => p.answer);
-    if (allAnswered) {
-      const majority = computeMajority(room.players);
+    // Auto-reveal if everyone answered
+    const active = [...room.players.values()].filter(p => !p.isSpectator)
+    if (active.length > 0 && active.every(p => p.answer)) {
+      clearServerTimer(room)
+      const maj = computeMajority(room.players)
       io.to(roomId).emit('all_answered', {
-        majority,
+        majority: maj,
         yesCount: active.filter(p => p.answer === 'yes').length,
-        noCount: active.filter(p => p.answer === 'no').length,
-      });
+        noCount:  active.filter(p => p.answer === 'no').length,
+      })
     }
-  });
+  })
 
-  // NEXT QUESTION
-  socket.on('next_question', ({ roomId }) => {
-    const room = rooms.get(roomId);
-    if (!room) return;
+  socket.on('next_question', ({ roomId, playerId }) => {
+    const room = rooms.get(roomId)
+    if (!room || !isHost(room, playerId)) return   // ← host guard
+    clearServerTimer(room)
+    advanceQuestion(roomId)
+  })
 
-    const active = [...room.players.values()].filter(p => !p.isSpectator);
-    const majority = computeMajority(room.players);
-
-    // Score players
-    active.forEach(p => {
-      const inMajority = majority === 'tie' || p.answer === majority;
-      const scored = inMajority && p.answer !== undefined;
-      const newStreak = scored ? p.streak + 1 : 0;
-      const streakBonus = scored && newStreak >= 2 ? 1 : 0;
-      if (scored) p.score += 1 + streakBonus;
-      p.streak = newStreak;
-    });
-
-    const record = {
-      question: room.questions[room.questionIndex],
-      answers: Object.fromEntries(active.map(p => [p.name, p.answer])),
-      majority,
-      scorers: active.filter(p => {
-        const inMaj = majority === 'tie' || p.answer === majority;
-        return inMaj && p.answer !== undefined;
-      }).map(p => p.name),
-      streakBonuses: active.filter(p => p.streak >= 2).map(p => p.name),
-    };
-
-    room.history.push(record);
-
-    // Reset answers
-    room.players.forEach(p => {
-      p.answer = undefined;
-      p.guessAnswer = undefined;
-    });
-
-    room.questionIndex++;
-    const isEnd = room.questionIndex >= room.questions.length;
-
-    if (isEnd) {
-      room.phase = 'results';
-      room.guessTarget = null;
-    } else {
-      const canGuess = !room.settings?.soloMode && active.length >= 2;
-      if (canGuess) {
-        const target = active[Math.floor(Math.random() * active.length)];
-        room.guessTarget = target.id;
-        room.phase = 'guess';
-      } else {
-        room.phase = 'game';
-        room.guessTarget = null;
-      }
-    }
-
-    broadcastState(roomId);
-  });
-
-  // PLAYER GUESS
   socket.on('player_guess', ({ roomId, playerId, guessAnswer }) => {
-    const room = rooms.get(roomId);
-    if (!room) return;
-    const player = room.players.get(playerId);
-    if (player) player.guessAnswer = guessAnswer;
-    broadcastState(roomId);
-  });
+    const room = rooms.get(roomId)
+    if (!room || !validatePlayer(room, playerId)) return
+    const p = room.players.get(playerId)
+    if (p) p.guessAnswer = guessAnswer
+    broadcast(roomId)
+  })
 
-  // REVEAL GUESSES
-  socket.on('reveal_guesses', ({ roomId }) => {
-    const room = rooms.get(roomId);
-    if (!room || !room.guessTarget) return;
+  socket.on('reveal_guesses', ({ roomId, playerId }) => {
+    const room = rooms.get(roomId)
+    if (!room || !isHost(room, playerId)) return   // ← host guard
+    if (!room.guessTarget) return
 
-    const target = room.players.get(room.guessTarget);
-    const lastRecord = room.history[room.history.length - 1];
-    const targetAnswer = lastRecord?.answers[target?.name ?? ''];
+    const target     = room.players.get(room.guessTarget)
+    const lastRecord = room.history[room.history.length - 1]
+    const targetAns  = lastRecord?.answers[target?.name ?? '']
 
     room.players.forEach(p => {
-      if (p.id === room.guessTarget || p.isSpectator || !p.guessAnswer) return;
-      if (p.guessAnswer === targetAnswer) p.score += 1;
-    });
+      if (p.id === room.guessTarget || p.isSpectator || !p.guessAnswer) return
+      if (p.guessAnswer === targetAns) p.score += 1
+    })
 
-    io.to(roomId).emit('guesses_revealed', serializeRoom(room));
-  });
+    io.to(roomId).emit('guesses_revealed', serialize(room))
+  })
 
-  // EXIT GUESS PHASE
-  socket.on('exit_guess', ({ roomId }) => {
-    const room = rooms.get(roomId);
-    if (!room) return;
-    const isEnd = room.questionIndex >= room.questions.length;
-    room.phase = isEnd ? 'results' : 'game';
-    room.guessTarget = null;
-    broadcastState(roomId);
-  });
+  socket.on('exit_guess', ({ roomId, playerId }) => {
+    const room = rooms.get(roomId)
+    if (!room || !isHost(room, playerId)) return   // ← host guard
+    const isEnd  = room.questionIndex >= room.questions.length
+    room.phase   = isEnd ? 'results' : 'game'
+    room.guessTarget = null
+    if (!isEnd) startServerTimer(roomId)
+    broadcast(roomId)
+  })
 
-  // DISCONNECT
   socket.on('disconnect', () => {
-    const { roomId, playerId } = socket.data;
-    if (!roomId || !playerId) return;
+    const { roomId, playerId } = socket.data ?? {}
+    if (!roomId || !playerId) return
+    const room = rooms.get(roomId)
+    if (!room) return
 
-    const room = rooms.get(roomId);
-    if (!room) return;
+    const player = room.players.get(playerId)
+    if (!player) return
 
-    const player = room.players.get(playerId);
-    if (player) {
-      console.log(`[${roomId}] ${player.name} déconnecté`);
-      room.players.delete(playerId);
-      io.to(roomId).emit('player_left', { playerId });
+    room.players.delete(playerId)
+    io.to(roomId).emit('player_left', { playerId })
 
-      if (room.players.size === 0) {
-        rooms.delete(roomId);
-        console.log(`[${roomId}] Room supprimée (vide)`);
-      }
+    // Transfer host if needed
+    if (room.hostId === playerId) {
+      const next = [...room.players.values()].find(p => !p.isSpectator)
+      room.hostId = next?.id ?? ''
+      if (room.hostId) io.to(roomId).emit('host_changed', { hostId: room.hostId })
     }
-  });
 
-  socket.on('ping', () => socket.emit('pong'));
-});
+    if (room.players.size === 0) {
+      clearServerTimer(room)
+      rooms.delete(roomId)
+    }
+  })
 
-// ─── Health check ─────────────────────────────────────────────────────────────
+  socket.on('ping', () => socket.emit('pong'))
+})
 
-app.get('/health', (_, res) => res.json({ status: 'ok', rooms: rooms.size }));
+// ─── Health ───────────────────────────────────────────────────────────────────
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`🌶️  Spill It! server running on port ${PORT}`);
-});
+app.get('/health', (_, res) => res.json({ status: 'ok', rooms: rooms.size }))
+
+const PORT = process.env.PORT || 3000
+server.listen(PORT, () => console.log(`🌶️  Spill It! server on port ${PORT}`))

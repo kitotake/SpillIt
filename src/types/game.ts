@@ -7,8 +7,7 @@ export type Player = {
   streak: number
   ready: boolean
   answer?: 'yes' | 'no'
-  guessTarget?: string   // who they're trying to guess
-  guessAnswer?: string   // their guess for that player's answer
+  guessAnswer?: string
   isSpectator?: boolean
 }
 
@@ -38,10 +37,23 @@ export type SavedGame = {
   phase: GamePhase
   playerName: string
   roomId: string
+  hostId: string
   players: Player[]
   settings: GameSettings
   questions: Question[]
   questionIndex: number
   history: RoundRecord[]
   savedAt: number
+}
+
+// Socket event payloads (shared between client hooks and server)
+export type SocketEvents = {
+  join_room: { roomId: string; playerName: string; isSpectator?: boolean }
+  player_ready: { roomId: string; playerId: string; ready: boolean }
+  start_game: { roomId: string; settings: GameSettings; questions: Question[] }
+  player_answer: { roomId: string; playerId: string; answer: 'yes' | 'no' }
+  next_question: { roomId: string; playerId: string }
+  player_guess: { roomId: string; playerId: string; guessAnswer: string }
+  reveal_guesses: { roomId: string; playerId: string }
+  exit_guess: { roomId: string; playerId: string }
 }

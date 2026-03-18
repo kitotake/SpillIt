@@ -1,66 +1,75 @@
 import { useEffect, useRef } from 'react'
 import { useSocket } from './useSocket'
 import { useGameStore } from '../store/useGameStore'
+import type { Player } from '../types/game'
 
 /**
- * useRoom — synchronise le store Zustand avec les événements Socket.IO.
- *
- * À utiliser dans les pages Lobby, Game, Guess, Results.
- * Quand le serveur émet 'room_state', on met à jour le store local.
- *
- * Usage :
- *   const { joinRoom, sendAnswer, sendReady } = useRoom()
+ * useRoom — syncs Zustand store with Socket.IO server events.
+ * Uses named store actions instead of direct setState calls.
  */
 export function useRoom() {
-  const { emit, on, off } = useSocket()
+  const { emit, on } = useSocket()
   const myPlayerId = useRef<string | null>(null)
 
-  const setPlayers = (players: any[]) =>
-    useGameStore.setState({ players })
-
-  const applyRoomState = (state: any) => {
-    useGameStore.setState({
-      phase: state.phase,
-      players: state.players,
-      questions: state.questions,
-      questionIndex: state.questionIndex,
-      settings: state.settings ?? useGameStore.getState().settings,
-      history: state.history,
-      guessTarget: state.guessTarget
-        ? state.players.find((p: any) => p.id === state.guessTarget) ?? null
-        : null,
-    })
-  }
+  const store = useGameStore()
 
   useEffect(() => {
-    // Server sends full state on join or any mutation
-    const offState = on('room_state', applyRoomState)
-    const offRevealed = on('guesses_revealed', applyRoomState)
+    // Full room state sync (join, reconnect, any mutation)
+    const offState = on('room_state', (state: any) => {
+      const me = (state.players as Player[]).find(
+        (p: Player) => p.name === store.playerName
+      )
+      store.setPlayers(state.players)
+      useGameStore.setState({
+        phase: state.phase,
+        questions: state.questions,
+        questionIndex: state.questionIndex,
+        settings: state.settings ?? store.settings,
+        history: state.history,
+        guessTarget: state.guessTarget
+          ? state.players.find((p: Player) => p.id === state.guessTarget) ?? null
+          : null,
+        hostId: state.hostId ?? '',
+      })
+      // Update local player ID if changed (reconnect)
+      if (me) myPlayerId.current = me.id
+    })
 
-    // Lightweight answer update (avoids full broadcast)
+    const offRevealed = on('guesses_revealed', (state: any) => {
+      store.setPlayers(state.players)
+      useGameStore.setState({ guessReveal: true })
+    })
+
+    // Lightweight answer update — avoids full broadcast cost
     const offAnswer = on('answer_update', ({ playerId, answer }: any) => {
-      useGameStore.setState(s => ({
-        players: s.players.map(p => p.id === playerId ? { ...p, answer } : p),
-      }))
+      store.updatePlayer(playerId, { answer })
     })
 
-    // Someone joined
     const offJoined = on('player_joined', ({ player }: any) => {
-      useGameStore.setState(s => ({
-        players: [...s.players.filter(p => p.id !== player.id), player],
+      useGameStore.setState((s) => ({
+        players: [...s.players.filter((p) => p.id !== player.id), player],
       }))
     })
 
-    // Someone left
     const offLeft = on('player_left', ({ playerId }: any) => {
-      useGameStore.setState(s => ({
-        players: s.players.filter(p => p.id !== playerId),
+      useGameStore.setState((s) => ({
+        players: s.players.filter((p) => p.id !== playerId),
       }))
     })
 
-    // Server tells us our own player ID after joining
-    const offMe = on('joined', ({ playerId }: any) => {
+    const offReconnected = on('player_reconnected', ({ playerId }: any) => {
+      store.updatePlayer(playerId, {}) // triggers re-render with existing data
+    })
+
+    // Server tells us our own player ID + who the host is
+    const offMe = on('joined', ({ playerId, hostId }: any) => {
       myPlayerId.current = playerId
+      store.setHostId(hostId)
+    })
+
+    const offAllAnswered = on('all_answered', ({ majority, yesCount, noCount }: any) => {
+      useGameStore.setState({ reveal: true })
+      void majority; void yesCount; void noCount // used by GamePage directly
     })
 
     return () => {
@@ -69,11 +78,13 @@ export function useRoom() {
       offAnswer()
       offJoined()
       offLeft()
+      offReconnected()
       offMe()
+      offAllAnswered()
     }
-  }, [on])
+  }, [on, store])
 
-  // ─── Actions ──────────────────────────────────────────────────────────────
+  // ─── Actions ────────────────────────────────────────────────────────────────
 
   const joinRoom = (roomId: string, playerName: string, isSpectator = false) => {
     emit('join_room', { roomId, playerName, isSpectator })
@@ -91,20 +102,20 @@ export function useRoom() {
     emit('player_answer', { roomId, playerId, answer })
   }
 
-  const sendNextQuestion = (roomId: string) => {
-    emit('next_question', { roomId })
+  const sendNextQuestion = (roomId: string, playerId: string) => {
+    emit('next_question', { roomId, playerId })
   }
 
   const sendGuess = (roomId: string, playerId: string, guessAnswer: string) => {
     emit('player_guess', { roomId, playerId, guessAnswer })
   }
 
-  const sendRevealGuesses = (roomId: string) => {
-    emit('reveal_guesses', { roomId })
+  const sendRevealGuesses = (roomId: string, playerId: string) => {
+    emit('reveal_guesses', { roomId, playerId })
   }
 
-  const sendExitGuess = (roomId: string) => {
-    emit('exit_guess', { roomId })
+  const sendExitGuess = (roomId: string, playerId: string) => {
+    emit('exit_guess', { roomId, playerId })
   }
 
   return {

@@ -1,12 +1,12 @@
-// src/pages/Home/index.tsx
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button } from '../../components/ui/Button'
-import { Card } from '../../components/ui/Card'
-import { Input } from '../../components/ui/Input'
+import { Button }       from '../../components/ui/Button'
+import { Card }         from '../../components/ui/Card'
+import { Input }        from '../../components/ui/Input'
 import { SplashScreen } from '../../components/SplashScreen/SplashScreen'
 import { AvatarPicker, Avatar } from '../../components/Avatar/AvatarGenerator'
 import { useGameStore } from '../../store/useGameStore'
+import { hasSavedGame } from '../../store/persistence'
 import { sounds, resumeAudio } from '../../utils/sounds'
 import './Home.scss'
 
@@ -16,23 +16,26 @@ function makeRoomId() {
 
 export function HomePage() {
   const navigate = useNavigate()
+
   const setPlayerName = useGameStore((s) => s.setPlayerName)
-  const setRoomId = useGameStore((s) => s.setRoomId)
-  const addPlayer = useGameStore((s) => s.addPlayer)
-  const setSettings = useGameStore((s) => s.setSettings)
-  const loadGame = useGameStore((s) => s.loadGame)
-  const clearSave = useGameStore((s) => s.clearSave)
-  const reset = useGameStore((s) => s.reset)
+  const setRoomId     = useGameStore((s) => s.setRoomId)
+  const setHostId     = useGameStore((s) => s.setHostId)
+  const addPlayer     = useGameStore((s) => s.addPlayer)
+  const setSettings   = useGameStore((s) => s.setSettings)
+  const loadGame      = useGameStore((s) => s.loadGame)
+  const clearSave     = useGameStore((s) => s.clearSave)
+  const reset         = useGameStore((s) => s.reset)
 
-  const [name, setName] = useState('')
-  const [room, setRoom] = useState('')
-  const [showSplash, setShowSplash] = useState(true)
-  const [savedGame, setSavedGame] = useState<{ exists: boolean; savedAt?: number }>({ exists: false })
-  const [linkCopied, setLinkCopied] = useState(false)
-  const [inviteRoomId, setInviteRoomId] = useState('')
-  const [showAvatarPicker, setShowAvatarPicker] = useState(false)
-  const [avatarSaved, setAvatarSaved] = useState(false)
+  const [name, setName]                   = useState('')
+  const [room, setRoom]                   = useState('')
+  const [showSplash, setShowSplash]       = useState(true)
+  const [savedExists, setSavedExists]     = useState(false)
+  const [linkCopied, setLinkCopied]       = useState(false)
+  const [inviteRoomId, setInviteRoomId]   = useState('')
+  const [showAvatarPicker, setShowAvatar] = useState(false)
+  const [avatarSaved, setAvatarSaved]     = useState(false)
 
+  // Read ?room= param from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const roomParam = params.get('room')
@@ -42,36 +45,28 @@ export function HomePage() {
     }
   }, [])
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('spillit_saved_game')
-      if (raw) {
-        const s = JSON.parse(raw)
-        if (Date.now() - s.savedAt < 2 * 60 * 60 * 1000) {
-          setSavedGame({ exists: true, savedAt: s.savedAt })
-        }
-      }
-    } catch (_) {}
-  }, [])
+  // Check persisted save
+  useEffect(() => { setSavedExists(hasSavedGame()) }, [])
 
-  const canJoin = name.trim().length > 0 && room.trim().length > 0
+  const canJoin   = name.trim().length > 0 && room.trim().length > 0
   const canCreate = name.trim().length > 0
 
   const go = useCallback((fn: () => void) => {
-    resumeAudio()
-    sounds.click()
-    fn()
+    resumeAudio(); sounds.click(); fn()
   }, [])
 
+  // Creates a room — this player IS the host
   const onCreate = () => go(() => {
-    const generated = makeRoomId()
+    const id = makeRoomId()
     setPlayerName(name.trim())
-    setRoomId(generated)
+    setRoomId(id)
     setSettings({ soloMode: false, randomAllCategories: false })
-    addPlayer(name.trim())
+    const player = addPlayer(name.trim())
+    if (player) setHostId(player.id)   // ← creator is host
     navigate('/lobby')
   })
 
+  // Joins an existing room — host is assigned by server on join_room
   const onJoin = () => go(() => {
     setPlayerName(name.trim())
     setRoomId(room.toUpperCase())
@@ -88,32 +83,23 @@ export function HomePage() {
     navigate('/lobby')
   })
 
+  // Solo — player is their own host
   const onSolo = () => go(() => {
-    const generated = makeRoomId()
+    const id = makeRoomId()
     setPlayerName(name.trim())
-    setRoomId(generated)
+    setRoomId(id)
     setSettings({ soloMode: true, randomAllCategories: false })
-    addPlayer(name.trim())
+    const player = addPlayer(name.trim())
+    if (player) setHostId(player.id)
     navigate('/lobby')
   })
 
   const onResume = () => go(() => {
-    const loaded = loadGame()
-    if (loaded) navigate('/game')
+    if (loadGame()) navigate('/game')
   })
 
-  const onDiscardSave = () => {
-    clearSave()
-    reset()
-    setSavedGame({ exists: false })
-  }
-
-  const onReset = () => {
-    reset()
-    setName('')
-    setRoom('')
-    setSavedGame({ exists: false })
-  }
+  const onDiscardSave = () => { clearSave(); reset(); setSavedExists(false) }
+  const onReset       = () => { reset(); setName(''); setRoom(''); setSavedExists(false) }
 
   const onGenerateLink = () => {
     const id = room.trim().toUpperCase() || makeRoomId()
@@ -121,8 +107,7 @@ export function HomePage() {
     setInviteRoomId(id)
     const link = `${window.location.origin}/?room=${id}`
     navigator.clipboard.writeText(link).then(() => {
-      setLinkCopied(true)
-      sounds.click()
+      setLinkCopied(true); sounds.click()
       setTimeout(() => setLinkCopied(false), 2500)
     })
   }
@@ -142,30 +127,24 @@ export function HomePage() {
           <span className="si-home__emoji">🌶️</span>
           <h1 className="si-home__title">Spill It!</h1>
         </div>
-        <p className="si-home__subtitle">
-          Joue avec des potes. Réponses rapides. Rires garantis.
-        </p>
+        <p className="si-home__subtitle">Joue avec des potes. Réponses rapides. Rires garantis.</p>
 
-        {savedGame.exists && (
+        {savedExists && (
           <div className="si-home__save-banner">
             <span>💾 Partie sauvegardée disponible</span>
             <div className="si-home__save-actions">
-              <button className="si-home__save-btn si-home__save-btn--resume" onClick={onResume}>
-                ▶ Reprendre
-              </button>
-              <button className="si-home__save-btn si-home__save-btn--discard" onClick={onDiscardSave}>
-                ✕
-              </button>
+              <button className="si-home__save-btn si-home__save-btn--resume" onClick={onResume}>▶ Reprendre</button>
+              <button className="si-home__save-btn si-home__save-btn--discard" onClick={onDiscardSave}>✕</button>
             </div>
           </div>
         )}
 
         <div className="si-home__form">
-          {/* Pseudo + Avatar row */}
+          {/* Pseudo + avatar */}
           <div className="si-home__pseudo-row">
             <Input
               value={name}
-              onChange={(e) => { setName(e.target.value); setShowAvatarPicker(false) }}
+              onChange={(e) => { setName(e.target.value); setShowAvatar(false) }}
               placeholder="Ton pseudo..."
               maxLength={16}
               autoFocus
@@ -174,7 +153,7 @@ export function HomePage() {
               <button
                 className={`si-home__avatar-btn ${avatarSaved ? 'saved' : ''}`}
                 type="button"
-                onClick={() => setShowAvatarPicker((v) => !v)}
+                onClick={() => setShowAvatar((v) => !v)}
                 title="Personnaliser mon avatar"
               >
                 <Avatar name={name.trim()} size={36} />
@@ -182,25 +161,17 @@ export function HomePage() {
             )}
           </div>
 
-          {/* Avatar picker */}
           {showAvatarPicker && name.trim().length > 0 && (
             <div className="si-home__avatar-picker-wrap">
               <AvatarPicker
                 playerName={name.trim()}
-                onSave={() => {
-                  setAvatarSaved(true)
-                  setShowAvatarPicker(false)
-                  setTimeout(() => setAvatarSaved(false), 2000)
-                }}
+                onSave={() => { setAvatarSaved(true); setShowAvatar(false); setTimeout(() => setAvatarSaved(false), 2000) }}
               />
             </div>
           )}
+          {avatarSaved && <p className="si-home__avatar-saved-msg">✅ Avatar sauvegardé !</p>}
 
-          {avatarSaved && (
-            <p className="si-home__avatar-saved-msg">✅ Avatar sauvegardé en cookie !</p>
-          )}
-
-          {/* JOIN SECTION */}
+          {/* Join */}
           <div className="si-home__section-label">Rejoindre une partie</div>
           <div className="si-home__join">
             <Input
@@ -210,9 +181,7 @@ export function HomePage() {
               maxLength={8}
               onKeyDown={(e) => e.key === 'Enter' && canJoin && onJoin()}
             />
-            <Button variant="secondary" disabled={!canJoin} onClick={onJoin}>
-              Rejoindre
-            </Button>
+            <Button variant="secondary" disabled={!canJoin} onClick={onJoin}>Rejoindre</Button>
           </div>
 
           {canJoin && (
@@ -227,31 +196,17 @@ export function HomePage() {
             type="button"
             disabled={!room.trim() && !canCreate}
           >
-            {linkCopied
-              ? `✅ Lien copié ! (${inviteRoomId})`
-              : '🔗 Copier le lien d\'invitation'}
+            {linkCopied ? `✅ Lien copié ! (${inviteRoomId})` : '🔗 Copier le lien d\'invitation'}
           </button>
 
-          {/* CREATE SECTION */}
+          {/* Create */}
           <div className="si-home__section-label">Nouvelle partie</div>
           <div className="si-home__create">
-            <Button variant="primary" disabled={!canCreate} onClick={onCreate}>
-              ✨ Créer une partie
-            </Button>
-            <Button
-              variant="secondary"
-              disabled={!canCreate}
-              onClick={onSolo}
-              className="si-home__solo-btn"
-            >
-              🎮 Solo
-            </Button>
+            <Button variant="primary" disabled={!canCreate} onClick={onCreate}>✨ Créer une partie</Button>
+            <Button variant="secondary" disabled={!canCreate} onClick={onSolo} className="si-home__solo-btn">🎮 Solo</Button>
           </div>
 
-          <button className="si-home__reset" onClick={onReset} type="button">
-            Réinitialiser
-          </button>
-
+          <button className="si-home__reset" onClick={onReset} type="button">Réinitialiser</button>
           {helpText && <p className="si-home__hint">{helpText}</p>}
         </div>
       </Card>

@@ -1,82 +1,85 @@
 .si-player-card {
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
   display: grid;
-  gap: 10px;
+  gap: 8px;
   transition: transform 0.18s ease, border-color 0.18s ease;
 
-  &:hover { transform: translateY(-3px); }
-
-  &.ready {
-    border-color: rgba(0, 255, 152, 0.7);
-  }
-
-  &.spectator {
-    opacity: 0.6;
-    border-style: dashed;
-  }
+  &:hover { transform: translateY(-2px); }
+  &.ready { border-color: rgba(0,255,152,0.6); }
+  &.spectator { opacity: 0.6; border-style: dashed; }
 }
 
 .si-player-card__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.si-player-card__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+
+  svg { border-radius: 50%; flex-shrink: 0; }
 }
 
 .si-player-card__name {
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.92);
+  font-size: 14px;
+  color: rgba(255,255,255,0.92);
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.si-player-card__host-tag,
 .si-player-card__spectator-tag {
-  font-size: 11px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.45);
-  background: rgba(255, 255, 255, 0.07);
-  border-radius: 6px;
-  padding: 1px 6px;
+  font-size: 13px;
+  flex-shrink: 0;
 }
 
 .si-player-card__streak {
-  font-size: 12px;
-  background: rgba(253, 203, 110, 0.12);
-  border: 1px solid rgba(253, 203, 110, 0.3);
-  color: rgba(253, 203, 110, 0.9);
+  font-size: 11px;
+  background: rgba(253,203,110,0.15);
+  border: 1px solid rgba(253,203,110,0.3);
+  color: rgba(253,203,110,0.9);
   border-radius: 999px;
-  padding: 1px 7px;
+  padding: 1px 6px;
+  flex-shrink: 0;
 }
 
 .si-player-card__ready {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.25);
   border-radius: 999px;
-  padding: 5px 12px;
+  padding: 4px 10px;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 12px;
+  color: rgba(255,255,255,0.85);
+  font-size: 11px;
+  font-weight: 600;
   transition: background 0.2s ease;
   white-space: nowrap;
-
-  &:hover { background: rgba(255, 255, 255, 0.18); }
+  &:hover { background: rgba(255,255,255,0.18); }
 }
 
 .si-player-card__spectator-label {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255,255,255,0.35);
   font-style: italic;
 }
 
 .si-player-card__meta {
   display: flex;
   gap: 12px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
 }

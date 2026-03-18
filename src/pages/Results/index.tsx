@@ -1,22 +1,23 @@
-// src/pages/Results/index.tsx
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card } from '../../components/ui/Card'
-import { Button } from '../../components/ui/Button'
+import { Card }     from '../../components/ui/Card'
+import { Button }   from '../../components/ui/Button'
 import { Confetti } from '../../components/Confetti/Confetti'
-import { Avatar } from '../../components/Avatar/AvatarGenerator'
-import { useGameStore } from '../../store/useGameStore'
+import { Avatar }   from '../../components/Avatar/AvatarGenerator'
+import { ConnectionStatus } from '../../components/ConnectionStatus/ConnectionStatus'
+import { useGameStore }     from '../../store/useGameStore'
 import { sounds, resumeAudio } from '../../utils/sounds'
 import './Results.scss'
 
-// Fun dynamic titles based on performance
-function getPlayerTitle(player: { score: number; streak: number; name: string }, sorted: { score: number; name: string }[], history: any[]): string {
+type SortedPlayer = { id: string; name: string; score: number; streak: number }
+
+function getPlayerTitle(player: SortedPlayer, sorted: SortedPlayer[], history: any[]): string {
   const rank = sorted.findIndex((p) => p.name === player.name)
   const total = sorted.length
   const maxScore = sorted[0]?.score ?? 0
-  const allAnswers = history.flatMap(r => Object.entries(r.answers))
-  const yesCount = allAnswers.filter(([n, a]) => n === player.name && a === 'yes').length
-  const noCount = allAnswers.filter(([n, a]) => n === player.name && a === 'no').length
+  const allAns = history.flatMap((r) => Object.entries(r.answers))
+  const yesCount = allAns.filter(([n, a]) => n === player.name && a === 'yes').length
+  const noCount  = allAns.filter(([n, a]) => n === player.name && a === 'no').length
 
   if (rank === 0 && maxScore === 0) return '🏳️ Abstentionniste en chef'
   if (rank === 0) {
@@ -26,33 +27,37 @@ function getPlayerTitle(player: { score: number; streak: number; name: string },
   }
   if (rank === sorted.length - 1) {
     if (player.score === 0) return '💀 Score négatif de l\'existence'
-    const loserTitles = ['🐢 La Tortue Perdue', '🍄 Dernier et Fier', '🎭 L\'Anti-Conformiste', '🌈 L\'Original Incompris']
-    return loserTitles[player.name.length % loserTitles.length]
+    const titles = ['🐢 La Tortue Perdue', '🍄 Dernier et Fier', '🎭 L\'Anti-Conformiste', '🌈 L\'Original Incompris']
+    return titles[player.name.length % titles.length]
   }
   if (yesCount > noCount * 2) return '✅ Éternel Optimiste'
   if (noCount > yesCount * 2) return '❌ Le Grand Pessimiste'
   if (player.streak >= 3) return '🔥 En Feu'
   if (rank === 1) return '🥈 L\'Éternel Second'
   if (rank === 2) return '🥉 Le Troisième Mousquetaire'
-  const midTitles = ['🎯 Stratège Moyen', '🌊 Dans la Moyenne', '🦆 Ni Chaud Ni Froid']
-  return midTitles[rank % midTitles.length]
+  const mid = ['🎯 Stratège Moyen', '🌊 Dans la Moyenne', '🦆 Ni Chaud Ni Froid']
+  return mid[rank % mid.length]
 }
 
 export function ResultsPage() {
   const navigate = useNavigate()
-  const players = useGameStore((s) => s.players)
-  const history = useGameStore((s) => s.history)
+
+  const players    = useGameStore((s) => s.players)
+  const history    = useGameStore((s) => s.history)
   const playerName = useGameStore((s) => s.playerName)
-  const roomId = useGameStore((s) => s.roomId)
-  const reset = useGameStore((s) => s.reset)
-  const clearSave = useGameStore((s) => s.clearSave)
-  const [confetti, setConfetti] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [exported, setExported] = useState(false)
+  const roomId     = useGameStore((s) => s.roomId)
+  const reset      = useGameStore((s) => s.reset)
+  const clearSave  = useGameStore((s) => s.clearSave)
+
+  const [confetti, setConfetti]       = useState(false)
+  const [copied, setCopied]           = useState(false)
+  const [exported, setExported]       = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  // Animated podium — reveal one card per 200ms
+  const [visibleCount, setVisibleCount] = useState(0)
   const resultsRef = useRef<HTMLDivElement>(null)
 
-  const activePlayers = players.filter((p) => !p.isSpectator)
+  const activePlayers = useMemo(() => players.filter((p) => !p.isSpectator), [players])
   const sorted = useMemo(
     () => [...activePlayers].sort((a, b) => b.score - a.score),
     [activePlayers],
@@ -60,45 +65,40 @@ export function ResultsPage() {
   const winner = sorted[0]
   const iWon = winner?.name === playerName
 
+  // Staggered podium reveal
   useEffect(() => {
     resumeAudio()
-    setTimeout(() => {
+    const timers: ReturnType<typeof setTimeout>[] = []
+    sorted.forEach((_, i) => {
+      timers.push(setTimeout(() => setVisibleCount(i + 1), 300 + i * 220))
+    })
+    // Confetti + sound after last card
+    timers.push(setTimeout(() => {
       setConfetti(true)
-      if (iWon) sounds.victory()
-      else sounds.correct()
-    }, 300)
-    setTimeout(() => setConfetti(false), 4000)
-  }, [])
+      if (iWon) sounds.victory(); else sounds.correct()
+    }, 300 + sorted.length * 220))
+    timers.push(setTimeout(() => setConfetti(false), 4500))
+    return () => timers.forEach(clearTimeout)
+  }, []) // eslint-disable-line
 
-  const onRestart = () => {
-    clearSave()
-    reset()
-    navigate('/')
-  }
+  const onRestart = () => { clearSave(); reset(); navigate('/') }
 
   const onCopyRoom = () => {
     navigator.clipboard.writeText(roomId).then(() => {
-      setCopied(true)
-      sounds.click()
+      setCopied(true); sounds.click()
       setTimeout(() => setCopied(false), 2000)
     })
   }
 
   const onShare = () => {
     const text = sorted
-      .map((p, i) => {
-        const title = getPlayerTitle(p, sorted, history)
-        return `${['🥇','🥈','🥉'][i] ?? `${i+1}.`} ${p.name} — ${p.score}pts ${title}`
-      })
+      .map((p, i) => `${['🥇','🥈','🥉'][i] ?? `${i+1}.`} ${p.name} — ${p.score}pts ${getPlayerTitle(p, sorted, history)}`)
       .join('\n')
     const shareText = `🌶️ Spill It! — Room ${roomId}\n${text}\n\nJoue sur SpillIt!`
     if (navigator.share) {
       navigator.share({ title: 'Spill It! Résultats', text: shareText })
     } else {
-      navigator.clipboard.writeText(shareText).then(() => {
-        sounds.click()
-        alert('Résultats copiés !')
-      })
+      navigator.clipboard.writeText(shareText).then(() => { sounds.click(); alert('Résultats copiés !') })
     }
   }
 
@@ -108,27 +108,21 @@ export function ResultsPage() {
       `Date: ${new Date().toLocaleDateString('fr-FR')}`,
       '',
       '=== CLASSEMENT ===',
-      ...sorted.map((p, i) => {
-        const title = getPlayerTitle(p, sorted, history)
-        return `${i + 1}. ${p.name} — ${p.score} pts ${title}${p.streak >= 2 ? ` (🔥 streak x${p.streak})` : ''}`
-      }),
+      ...sorted.map((p, i) => `${i + 1}. ${p.name} — ${p.score} pts ${getPlayerTitle(p, sorted, history)}`),
       '',
       '=== HISTORIQUE ===',
-      ...history.map((r, i) =>
-        [
-          `Q${i + 1}: ${r.question.text}`,
-          `  Majorité: ${r.majority === 'yes' ? 'Oui' : r.majority === 'no' ? 'Non' : 'Égalité'}`,
-          ...Object.entries(r.answers).map(([name, ans]) => `  ${name}: ${ans === 'yes' ? 'Oui' : ans === 'no' ? 'Non' : '—'}`),
-        ].join('\n'),
-      ),
+      ...history.map((r, i) => [
+        `Q${i + 1}: ${r.question.text}`,
+        `  Majorité: ${r.majority === 'yes' ? 'Oui' : r.majority === 'no' ? 'Non' : 'Égalité'}`,
+        ...Object.entries(r.answers).map(([n, a]) => `  ${n}: ${a === 'yes' ? 'Oui' : a === 'no' ? 'Non' : '—'}`),
+      ].join('\n')),
     ]
     const blob = new Blob([lines.join('\n')], { type: 'text/plain' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = `spillit-${roomId}-${Date.now()}.txt`
     a.click()
-    setExported(true)
-    sounds.click()
+    setExported(true); sounds.click()
     setTimeout(() => setExported(false), 2000)
   }
 
@@ -137,6 +131,8 @@ export function ResultsPage() {
   return (
     <div className="si-page si-results-v2">
       <Confetti active={confetti} />
+      <ConnectionStatus />
+
       <div className="si-results-v2__inner" ref={resultsRef}>
 
         {/* WIN BANNER */}
@@ -145,23 +141,25 @@ export function ResultsPage() {
           <div className="si-results-v2__banner-text">
             {iWon
               ? `Tu remportes la partie, ${winner.name} !`
-              : winner
-              ? `${winner.name} remporte la partie !`
-              : 'Partie terminée !'}
+              : winner ? `${winner.name} remporte la partie !` : 'Partie terminée !'}
           </div>
-          {iWon && <div className="si-results-v2__banner-sub">avec {winner.score} point{winner.score !== 1 ? 's' : ''}</div>}
+          {iWon && (
+            <div className="si-results-v2__banner-sub">
+              avec {winner.score} point{winner.score !== 1 ? 's' : ''}
+            </div>
+          )}
         </div>
 
-        {/* PODIUM */}
+        {/* PODIUM — staggered reveal */}
         <div className="si-results-v2__podium-wrap">
           {sorted.map((player, index) => {
-            const isMe = player.name === playerName
+            const isMe  = player.name === playerName
             const title = getPlayerTitle(player, sorted, history)
+            const visible = index < visibleCount
             return (
               <div
                 key={player.id}
-                className={`si-results-v2__player-card ${isMe ? 'me' : ''} rank-${index}`}
-                style={{ animationDelay: `${index * 0.1}s` }}
+                className={`si-results-v2__player-card ${isMe ? 'me' : ''} rank-${index} ${visible ? 'visible' : 'hidden'}`}
               >
                 <div className="si-results-v2__player-rank">
                   {medals[index] ?? <span className="si-results-v2__rank-num">{index + 1}</span>}
@@ -174,7 +172,8 @@ export function ResultsPage() {
                 </div>
                 <div className="si-results-v2__player-details">
                   <div className="si-results-v2__player-name">
-                    {player.name}{isMe && <span className="si-results-v2__me-tag">toi</span>}
+                    {player.name}
+                    {isMe && <span className="si-results-v2__me-tag">toi</span>}
                   </div>
                   <div className="si-results-v2__player-title">{title}</div>
                   <div className="si-results-v2__player-score">
@@ -190,9 +189,7 @@ export function ResultsPage() {
         <div className="si-results-v2__actions">
           <Button onClick={onRestart}>🔄 Rejouer</Button>
           <Button variant="secondary" onClick={onShare}>📤 Partager</Button>
-          <Button variant="secondary" onClick={onExport}>
-            {exported ? '✅ Exporté !' : '📥 Exporter'}
-          </Button>
+          <Button variant="secondary" onClick={onExport}>{exported ? '✅ Exporté !' : '📥 Exporter'}</Button>
         </div>
 
         <div className="si-results-v2__room">
@@ -202,7 +199,7 @@ export function ResultsPage() {
           </button>
         </div>
 
-        {/* HISTORY TOGGLE */}
+        {/* HISTORY */}
         {history.length > 0 && (
           <Card className="si-results-v2__history-card">
             <button
@@ -224,9 +221,7 @@ export function ResultsPage() {
                         <span
                           key={name}
                           className={`si-results-v2__ans ${
-                            ans === round.majority || round.majority === 'tie'
-                              ? 'scored'
-                              : 'miss'
+                            ans === round.majority || round.majority === 'tie' ? 'scored' : 'miss'
                           }`}
                         >
                           {ans === 'yes' ? '✅' : ans === 'no' ? '❌' : '—'} {name}
@@ -234,7 +229,9 @@ export function ResultsPage() {
                         </span>
                       ))}
                       <span className="si-results-v2__majority">
-                        {round.majority === 'yes' ? '✅ Majorité Oui' : round.majority === 'no' ? '❌ Majorité Non' : '🤝 Égalité'}
+                        {round.majority === 'yes' ? '✅ Majorité Oui'
+                          : round.majority === 'no' ? '❌ Majorité Non'
+                          : '🤝 Égalité'}
                       </span>
                     </div>
                   </div>

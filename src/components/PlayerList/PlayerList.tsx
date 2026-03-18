@@ -1,13 +1,15 @@
+import { memo } from 'react'
 import { useGameStore } from '../../store/useGameStore'
 import { PlayerCard } from './PlayerCard'
 import './PlayerList.scss'
 
-export function PlayerList() {
-  const players = useGameStore((state) => state.players)
-  const myName = useGameStore((state) => state.playerName)
-  const toggleReady = useGameStore((state) => state.togglePlayerReady)
+export const PlayerList = memo(function PlayerList() {
+  const players  = useGameStore((s) => s.players)
+  const myName   = useGameStore((s) => s.playerName)
+  const hostId   = useGameStore((s) => s.hostId)
+  const toggleReady = useGameStore((s) => s.togglePlayerReady)
 
-  const active = players.filter((p) => !p.isSpectator)
+  const active     = players.filter((p) => !p.isSpectator)
   const spectators = players.filter((p) => p.isSpectator)
 
   return (
@@ -22,6 +24,7 @@ export function PlayerList() {
               key={player.id}
               player={player}
               isMe={player.name === myName}
+              isHost={player.id === hostId}
               onToggleReady={() => toggleReady(player.id)}
             />
           ))}
@@ -44,4 +47,4 @@ export function PlayerList() {
       )}
     </div>
   )
-}
+})

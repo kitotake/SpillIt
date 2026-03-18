@@ -1,52 +1,17 @@
 import { create } from 'zustand'
-import type { GamePhase, GameSettings, Player, Question, RoundRecord, SavedGame } from '../types/game'
+import type { GamePhase, GameSettings, Player, Question, RoundRecord } from '../types/game'
+import { makeId, computeMajority, shuffle } from '../utils/game'
+import { persistGame, loadPersistedGame, clearPersistedGame } from './persistence'
 import quizz from '../quizz.json'
 
-const makeId = () => Math.random().toString(36).slice(2, 10)
-const SAVE_KEY = 'spillit_saved_game'
+// ─── Questions pool ───────────────────────────────────────────────────────────
 
 const allQuestions: Question[] = Object.entries(quizz.questions).flatMap(
   ([category, questions]) =>
     (questions as string[]).map((q) => ({ id: makeId(), text: q, category })),
 )
 
-export type GameStore = {
-  phase: GamePhase
-  playerName: string
-  roomId: string
-  players: Player[]
-  settings: GameSettings
-  questions: Question[]
-  questionIndex: number
-  reveal: boolean
-  timerSeconds: number
-  history: RoundRecord[]
-  // Guess phase state
-  guessTarget: Player | null   // the player being guessed about
-  guessReveal: boolean
-
-  reset: () => void
-  setPlayerName: (name: string) => void
-  setRoomId: (id: string) => void
-  addPlayer: (name: string, isSpectator?: boolean) => void
-  removePlayer: (id: string) => void
-  togglePlayerReady: (id: string) => void
-  setSettings: (settings: Partial<GameSettings>) => void
-  startGame: () => void
-  setAnswer: (playerId: string, answer: Player['answer']) => void
-  nextQuestion: () => void
-  finishGame: () => void
-  setReveal: (reveal: boolean) => void
-  setTimerSeconds: (seconds: number | ((prev: number) => number)) => void
-  // Guess phase
-  setGuessAnswer: (playerId: string, guessAnswer: string) => void
-  revealGuesses: () => void
-  exitGuessPhase: () => void
-  // Persistence
-  saveGame: () => void
-  loadGame: () => boolean
-  clearSave: () => void
-}
+// ─── Defaults ─────────────────────────────────────────────────────────────────
 
 const defaultSettings: GameSettings = {
   questionCount: 6,
@@ -56,89 +21,147 @@ const defaultSettings: GameSettings = {
   randomAllCategories: false,
 }
 
-function computeMajority(players: Player[]): 'yes' | 'no' | 'tie' {
-  const activePlayers = players.filter((p) => !p.isSpectator)
-  const yes = activePlayers.filter((p) => p.answer === 'yes').length
-  const no = activePlayers.filter((p) => p.answer === 'no').length
-  if (yes > no) return 'yes'
-  if (no > yes) return 'no'
-  return 'tie'
-}
-
 const initialState = {
   phase: 'home' as GamePhase,
   playerName: '',
   roomId: '',
-  players: [],
-  settings: defaultSettings,
-  questions: [],
+  hostId: '',           // ← who can start/control the game
+  players: [] as Player[],
+  settings: { ...defaultSettings },
+  questions: [] as Question[],
   questionIndex: 0,
   reveal: false,
   timerSeconds: defaultSettings.secondsPerQuestion,
-  history: [],
-  guessTarget: null,
+  history: [] as RoundRecord[],
+  guessTarget: null as Player | null,
   guessReveal: false,
+  // Connection state
+  connectionStatus: 'disconnected' as 'disconnected' | 'connecting' | 'connected' | 'error',
+  reconnecting: false,
 }
+
+// ─── Store type ───────────────────────────────────────────────────────────────
+
+export type GameStore = typeof initialState & {
+  // Identity
+  setPlayerName: (name: string) => void
+  setRoomId: (id: string) => void
+  setHostId: (id: string) => void
+
+  // Connection
+  setConnectionStatus: (status: GameStore['connectionStatus']) => void
+  setReconnecting: (v: boolean) => void
+
+  // Players
+  addPlayer: (name: string, isSpectator?: boolean) => Player | null
+  removePlayer: (id: string) => void
+  togglePlayerReady: (id: string) => void
+  setPlayers: (players: Player[]) => void
+  updatePlayer: (id: string, patch: Partial<Player>) => void
+
+  // Settings
+  setSettings: (settings: Partial<GameSettings>) => void
+
+  // Game flow
+  startGame: () => void
+  setAnswer: (playerId: string, answer: Player['answer']) => void
+  nextQuestion: () => void
+  setReveal: (reveal: boolean) => void
+  setTimerSeconds: (seconds: number | ((prev: number) => number)) => void
+
+  // Guess phase
+  setGuessAnswer: (playerId: string, guessAnswer: string) => void
+  revealGuesses: () => void
+  exitGuessPhase: () => void
+
+  // Persistence
+  saveGame: () => void
+  loadGame: () => boolean
+  clearSave: () => void
+
+  // Misc
+  reset: () => void
+  isHost: () => boolean
+}
+
+// ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useGameStore = create<GameStore>((set, get) => ({
   ...initialState,
 
-  reset: () => set({ ...initialState, settings: { ...defaultSettings } }),
+  // ── Identity ──────────────────────────────────────────────────────────────
 
   setPlayerName: (name) => set({ playerName: name }),
   setRoomId: (id) => set({ roomId: id }),
+  setHostId: (id) => set({ hostId: id }),
 
-  addPlayer: (name, isSpectator = false) =>
-    set((state) => {
-      if (!name.trim()) return state
-      const existing = state.players.find(
-        (p) => p.name.toLowerCase() === name.trim().toLowerCase(),
-      )
-      if (existing) return state
-      const player: Player = {
-        id: makeId(),
-        name: name.trim(),
-        score: 0,
-        streak: 0,
-        ready: false,
-        isSpectator,
-      }
-      return { players: [...state.players, player] }
-    }),
+  // ── Connection ────────────────────────────────────────────────────────────
+
+  setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
+  setReconnecting: (reconnecting) => set({ reconnecting }),
+
+  // ── Players ───────────────────────────────────────────────────────────────
+
+  addPlayer: (name, isSpectator = false) => {
+    const state = get()
+    const trimmed = name.trim()
+    if (!trimmed) return null
+    const existing = state.players.find(
+      (p) => p.name.toLowerCase() === trimmed.toLowerCase(),
+    )
+    if (existing) return null
+    const player: Player = {
+      id: makeId(),
+      name: trimmed,
+      score: 0,
+      streak: 0,
+      ready: false,
+      isSpectator,
+    }
+    set((s) => ({ players: [...s.players, player] }))
+    return player
+  },
 
   removePlayer: (id) =>
-    set((state) => ({ players: state.players.filter((p) => p.id !== id) })),
+    set((s) => ({ players: s.players.filter((p) => p.id !== id) })),
 
   togglePlayerReady: (id) =>
-    set((state) => ({
-      players: state.players.map((p) =>
-        p.id === id ? { ...p, ready: !p.ready } : p,
-      ),
+    set((s) => ({
+      players: s.players.map((p) => (p.id === id ? { ...p, ready: !p.ready } : p)),
     })),
 
+  setPlayers: (players) => set({ players }),
+
+  updatePlayer: (id, patch) =>
+    set((s) => ({
+      players: s.players.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+    })),
+
+  // ── Settings ──────────────────────────────────────────────────────────────
+
   setSettings: (settings) =>
-    set((state) => ({ settings: { ...state.settings, ...settings } })),
+    set((s) => ({ settings: { ...s.settings, ...settings } })),
+
+  // ── Game flow ─────────────────────────────────────────────────────────────
 
   startGame: () =>
-    set((state) => {
-      let pool: Question[]
-      if (state.settings.randomAllCategories) {
-        pool = [...allQuestions]
-      } else {
-        pool = allQuestions.filter((q) => q.category === state.settings.category)
-      }
-      const shuffled = [...pool].sort(() => Math.random() - 0.5)
-      const questions = shuffled.slice(0, state.settings.questionCount)
+    set((s) => {
+      const pool = s.settings.randomAllCategories
+        ? allQuestions
+        : allQuestions.filter((q) => q.category === s.settings.category)
+
+      const questions = shuffle(pool).slice(0, s.settings.questionCount)
+
       return {
         phase: 'game',
         questions,
         questionIndex: 0,
         reveal: false,
-        timerSeconds: state.settings.secondsPerQuestion,
+        timerSeconds: s.settings.secondsPerQuestion,
         history: [],
         guessTarget: null,
         guessReveal: false,
-        players: state.players.map((p) => ({
+        players: s.players.map((p) => ({
           ...p,
           score: 0,
           streak: 0,
@@ -149,20 +172,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }),
 
   setAnswer: (playerId, answer) =>
-    set((state) => ({
-      players: state.players.map((p) =>
-        p.id === playerId ? { ...p, answer } : p,
-      ),
+    set((s) => ({
+      players: s.players.map((p) => (p.id === playerId ? { ...p, answer } : p)),
     })),
 
   nextQuestion: () =>
-    set((state) => {
-      const currentQuestion = state.questions[state.questionIndex]
-      const majority = computeMajority(state.players)
-      const activePlayers = state.players.filter((p) => !p.isSpectator)
+    set((s) => {
+      const currentQuestion = s.questions[s.questionIndex]
+      const majority = computeMajority(s.players)
+      const activePlayers = s.players.filter((p) => !p.isSpectator)
 
-      // Award +1 for majority, +1 streak bonus if streak >= 2
-      const updatedPlayers = state.players.map((p) => {
+      // Score computation
+      const updatedPlayers = s.players.map((p) => {
         if (p.isSpectator) return p
         const inMajority = majority === 'tie' || p.answer === majority
         const scored = inMajority && p.answer !== undefined
@@ -172,18 +193,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
           ...p,
           score: p.score + (scored ? 1 : 0) + streakBonus,
           streak: newStreak,
+          answer: undefined,
+          guessAnswer: undefined,
         }
       })
 
-      const streakBonuses = updatedPlayers
-        .filter((p, i) => {
-          const orig = state.players[i]
-          return p.score > orig.score + 1
-        })
+      const scorers = updatedPlayers
+        .filter((p, i) => p.score > s.players[i].score)
         .map((p) => p.name)
 
-      const scorers = updatedPlayers
-        .filter((p, i) => p.score > state.players[i].score)
+      const streakBonuses = updatedPlayers
+        .filter((p, i) => p.score > s.players[i].score + 1)
         .map((p) => p.name)
 
       const record: RoundRecord = {
@@ -194,129 +214,107 @@ export const useGameStore = create<GameStore>((set, get) => ({
         streakBonuses,
       }
 
-      const nextIndex = state.questionIndex + 1
-      const isEnd = nextIndex >= state.questions.length
-
-      // Pick a random active player as guess target (only in multiplayer)
-      const guessTarget =
-        !state.settings.soloMode && activePlayers.length >= 2
-          ? activePlayers[Math.floor(Math.random() * activePlayers.length)]
-          : null
+      const nextIndex = s.questionIndex + 1
+      const isEnd = nextIndex >= s.questions.length
+      const canGuess = !s.settings.soloMode && activePlayers.length >= 2
+      const guessTarget = !isEnd && canGuess
+        ? activePlayers[Math.floor(Math.random() * activePlayers.length)]
+        : null
 
       return {
-        history: [...state.history, record],
-        players: updatedPlayers.map((p) => ({
-          ...p,
-          answer: undefined,
-          guessAnswer: undefined,
-        })),
+        history: [...s.history, record],
+        players: updatedPlayers,
         questionIndex: nextIndex,
         reveal: false,
-        timerSeconds: state.settings.secondsPerQuestion,
+        timerSeconds: s.settings.secondsPerQuestion,
         phase: isEnd ? 'results' : guessTarget ? 'guess' : 'game',
-        guessTarget: guessTarget ?? null,
+        guessTarget,
         guessReveal: false,
       }
     }),
-
-  finishGame: () => set({ phase: 'results', reveal: false }),
 
   setReveal: (reveal) => set({ reveal }),
 
   setTimerSeconds: (seconds) =>
-    set((state) => ({
-      timerSeconds:
-        typeof seconds === 'function' ? seconds(state.timerSeconds) : seconds,
+    set((s) => ({
+      timerSeconds: typeof seconds === 'function' ? seconds(s.timerSeconds) : seconds,
     })),
 
-  // Guess phase
+  // ── Guess phase ───────────────────────────────────────────────────────────
+
   setGuessAnswer: (playerId, guessAnswer) =>
-    set((state) => ({
-      players: state.players.map((p) =>
-        p.id === playerId ? { ...p, guessAnswer } : p,
-      ),
+    set((s) => ({
+      players: s.players.map((p) => (p.id === playerId ? { ...p, guessAnswer } : p)),
     })),
 
   revealGuesses: () =>
-    set((state) => {
-      const { guessTarget } = state
-      if (!guessTarget) return state
-
-      // Award +1 to players who correctly guessed the target's last answer
-      const lastRecord = state.history[state.history.length - 1]
-      const targetAnswer = lastRecord?.answers[guessTarget.name]
-
-      const updatedPlayers = state.players.map((p) => {
+    set((s) => {
+      const { guessTarget, history } = s
+      if (!guessTarget) return s
+      const targetAnswer = history[history.length - 1]?.answers[guessTarget.name]
+      const players = s.players.map((p) => {
         if (p.id === guessTarget.id || p.isSpectator || !p.guessAnswer) return p
-        const correct = p.guessAnswer === targetAnswer
-        return correct ? { ...p, score: p.score + 1 } : p
+        return p.guessAnswer === targetAnswer ? { ...p, score: p.score + 1 } : p
       })
-
-      return { players: updatedPlayers, guessReveal: true }
+      return { players, guessReveal: true }
     }),
 
   exitGuessPhase: () =>
-    set((state) => {
-      const nextIndex = state.questionIndex
-      const isEnd = nextIndex >= state.questions.length
-      return {
-        phase: isEnd ? 'results' : 'game',
-        guessTarget: null,
-        guessReveal: false,
-      }
-    }),
+    set((s) => ({
+      phase: s.questionIndex >= s.questions.length ? 'results' : 'game',
+      guessTarget: null,
+      guessReveal: false,
+    })),
 
-  // Persistence
+  // ── Persistence ───────────────────────────────────────────────────────────
+
   saveGame: () => {
-    const state = get()
-    if (state.phase === 'home') return
-    const save: SavedGame = {
-      phase: state.phase,
-      playerName: state.playerName,
-      roomId: state.roomId,
-      players: state.players,
-      settings: state.settings,
-      questions: state.questions,
-      questionIndex: state.questionIndex,
-      history: state.history,
-      savedAt: Date.now(),
-    }
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(save))
-    } catch (_) {}
+    const s = get()
+    persistGame({
+      phase: s.phase,
+      playerName: s.playerName,
+      roomId: s.roomId,
+      hostId: s.hostId,
+      players: s.players,
+      settings: s.settings,
+      questions: s.questions,
+      questionIndex: s.questionIndex,
+      history: s.history,
+    })
   },
 
   loadGame: () => {
-    try {
-      const raw = localStorage.getItem(SAVE_KEY)
-      if (!raw) return false
-      const save: SavedGame = JSON.parse(raw)
-      // Discard saves older than 2 hours
-      if (Date.now() - save.savedAt > 2 * 60 * 60 * 1000) {
-        localStorage.removeItem(SAVE_KEY)
-        return false
-      }
-      set({
-        phase: save.phase,
-        playerName: save.playerName,
-        roomId: save.roomId,
-        players: save.players,
-        settings: save.settings,
-        questions: save.questions,
-        questionIndex: save.questionIndex,
-        history: save.history,
-        reveal: false,
-        timerSeconds: save.settings.secondsPerQuestion,
-        guessTarget: null,
-        guessReveal: false,
-      })
-      return true
-    } catch (_) {
-      return false
-    }
+    const save = loadPersistedGame()
+    if (!save) return false
+    set({
+      phase: save.phase,
+      playerName: save.playerName,
+      roomId: save.roomId,
+      hostId: save.hostId,
+      players: save.players,
+      settings: save.settings,
+      questions: save.questions,
+      questionIndex: save.questionIndex,
+      history: save.history,
+      reveal: false,
+      timerSeconds: save.settings.secondsPerQuestion,
+      guessTarget: null,
+      guessReveal: false,
+    })
+    return true
   },
 
-  clearSave: () => {
-    try { localStorage.removeItem(SAVE_KEY) } catch (_) {}
+  clearSave: () => clearPersistedGame(),
+
+  // ── Misc ──────────────────────────────────────────────────────────────────
+
+  reset: () => set({ ...initialState, settings: { ...defaultSettings } }),
+
+  isHost: () => {
+    const s = get()
+    // In solo mode everyone is host. In multiplayer, match by hostId.
+    if (s.settings.soloMode) return true
+    const me = s.players.find((p) => p.name === s.playerName)
+    return me?.id === s.hostId
   },
 }))
