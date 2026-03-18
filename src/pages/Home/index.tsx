@@ -1,9 +1,11 @@
+// src/pages/Home/index.tsx
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Input } from '../../components/ui/Input'
 import { SplashScreen } from '../../components/SplashScreen/SplashScreen'
+import { AvatarPicker, Avatar } from '../../components/Avatar/AvatarGenerator'
 import { useGameStore } from '../../store/useGameStore'
 import { sounds, resumeAudio } from '../../utils/sounds'
 import './Home.scss'
@@ -28,14 +30,14 @@ export function HomePage() {
   const [savedGame, setSavedGame] = useState<{ exists: boolean; savedAt?: number }>({ exists: false })
   const [linkCopied, setLinkCopied] = useState(false)
   const [inviteRoomId, setInviteRoomId] = useState('')
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false)
+  const [avatarSaved, setAvatarSaved] = useState(false)
 
-  // 🔗 Auto-fill room code from URL param
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const roomParam = params.get('room')
     if (roomParam) {
       setRoom(roomParam.toUpperCase())
-      // Clean URL without reload
       window.history.replaceState({}, '', '/')
     }
   }, [])
@@ -113,7 +115,6 @@ export function HomePage() {
     setSavedGame({ exists: false })
   }
 
-  // 🔗 Generate invite link for a room code
   const onGenerateLink = () => {
     const id = room.trim().toUpperCase() || makeRoomId()
     if (!room.trim()) setRoom(id)
@@ -160,13 +161,44 @@ export function HomePage() {
         )}
 
         <div className="si-home__form">
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Ton pseudo..."
-            maxLength={16}
-            autoFocus
-          />
+          {/* Pseudo + Avatar row */}
+          <div className="si-home__pseudo-row">
+            <Input
+              value={name}
+              onChange={(e) => { setName(e.target.value); setShowAvatarPicker(false) }}
+              placeholder="Ton pseudo..."
+              maxLength={16}
+              autoFocus
+            />
+            {name.trim().length > 0 && (
+              <button
+                className={`si-home__avatar-btn ${avatarSaved ? 'saved' : ''}`}
+                type="button"
+                onClick={() => setShowAvatarPicker((v) => !v)}
+                title="Personnaliser mon avatar"
+              >
+                <Avatar name={name.trim()} size={36} />
+              </button>
+            )}
+          </div>
+
+          {/* Avatar picker */}
+          {showAvatarPicker && name.trim().length > 0 && (
+            <div className="si-home__avatar-picker-wrap">
+              <AvatarPicker
+                playerName={name.trim()}
+                onSave={() => {
+                  setAvatarSaved(true)
+                  setShowAvatarPicker(false)
+                  setTimeout(() => setAvatarSaved(false), 2000)
+                }}
+              />
+            </div>
+          )}
+
+          {avatarSaved && (
+            <p className="si-home__avatar-saved-msg">✅ Avatar sauvegardé en cookie !</p>
+          )}
 
           {/* JOIN SECTION */}
           <div className="si-home__section-label">Rejoindre une partie</div>
@@ -189,7 +221,6 @@ export function HomePage() {
             </button>
           )}
 
-          {/* INVITE LINK */}
           <button
             className={`si-home__invite-btn ${linkCopied ? 'copied' : ''}`}
             onClick={onGenerateLink}

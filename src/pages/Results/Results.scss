@@ -1,97 +1,191 @@
-.si-results {
+// src/pages/Results/Results.scss
+
+.si-results-v2 {
   min-height: 100svh;
-  padding: 26px 20px 60px;
+  padding: 24px 20px 60px;
   display: flex;
   justify-content: center;
 }
 
-.si-results__inner {
-  width: min(720px, 100%);
+.si-results-v2__inner {
+  width: min(680px, 100%);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
-.si-results__card {
+// ── WIN BANNER ────────────────────────────────────────────────────────────────
+
+.si-results-v2__banner {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 24px 20px;
   text-align: center;
-  animation: fadeUp 0.4s ease both;
-}
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  animation: bannerIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 
-.si-results__title {
-  margin: 0 0 4px;
-  font-size: 32px;
-}
-
-.si-results__winner {
-  font-size: 15px;
-  margin: 12px 0 20px;
-  color: rgba(255, 255, 255, 0.85);
-  padding: 12px 16px;
-  background: rgba(108, 92, 231, 0.12);
-  border-radius: 12px;
-  border: 1px solid rgba(108, 92, 231, 0.25);
-
-  &--me {
-    background: rgba(253, 203, 110, 0.1);
+  &--win {
+    background: rgba(253, 203, 110, 0.08);
     border-color: rgba(253, 203, 110, 0.3);
-    animation: winnerPulse 1s ease 0.5s both;
+    animation: winBannerIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
 }
 
-@keyframes winnerPulse {
-  0%, 100% { box-shadow: none; }
-  50% { box-shadow: 0 0 20px rgba(253, 203, 110, 0.3); }
+@keyframes bannerIn {
+  from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.si-results__table {
-  display: grid;
-  gap: 8px;
-  margin: 0 0 8px;
+@keyframes winBannerIn {
+  from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); box-shadow: 0 0 40px rgba(253, 203, 110, 0.15); }
 }
 
-.si-results__row {
-  display: grid;
-  grid-template-columns: 48px 1fr auto auto;
+.si-results-v2__banner-emoji {
+  font-size: 52px;
+  animation: trophyBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.2s;
+}
+
+@keyframes trophyBounce {
+  from { transform: scale(0) rotate(-20deg); }
+  to { transform: scale(1) rotate(0deg); }
+}
+
+.si-results-v2__banner-text {
+  font-size: 20px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.si-results-v2__banner-sub {
+  font-size: 14px;
+  color: rgba(253, 203, 110, 0.8);
+}
+
+// ── PODIUM ────────────────────────────────────────────────────────────────────
+
+.si-results-v2__podium-wrap {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
-  padding: 12px 16px;
-  border-radius: 14px;
+}
+
+.si-results-v2__player-card {
+  display: grid;
+  grid-template-columns: 44px 56px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 18px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  align-items: center;
-  animation: fadeUp 0.4s ease both;
-  text-align: left;
+  animation: cardSlide 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  transition: transform 0.2s ease;
 
-  &--header {
-    background: rgba(255, 255, 255, 0.1);
-    font-weight: 700;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: rgba(255, 255, 255, 0.6);
-    border-color: transparent;
+  &:hover { transform: translateX(4px); }
+
+  &.me {
+    background: rgba(108, 92, 231, 0.12);
+    border-color: rgba(108, 92, 231, 0.4);
   }
 
-  &--me {
-    background: rgba(108, 92, 231, 0.14);
-    border-color: rgba(108, 92, 231, 0.35);
+  &.rank-0 {
+    background: rgba(253, 203, 110, 0.08);
+    border-color: rgba(253, 203, 110, 0.3);
+    padding: 18px 20px;
+
+    .si-results-v2__player-name { font-size: 18px; }
   }
 }
 
-.si-results__score {
+@keyframes cardSlide {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.si-results-v2__player-rank {
+  font-size: 28px;
+  text-align: center;
+  line-height: 1;
+}
+
+.si-results-v2__rank-num {
+  font-size: 18px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.si-results-v2__player-avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  svg { border-radius: 50%; display: block; }
+}
+
+.si-results-v2__player-streak-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  font-size: 12px;
+  background: rgba(253, 203, 110, 0.9);
+  border-radius: 999px;
+  padding: 0 4px;
+  line-height: 18px;
   font-weight: 700;
+}
+
+.si-results-v2__player-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.si-results-v2__player-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.si-results-v2__me-tag {
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(108, 92, 231, 0.3);
+  border-radius: 6px;
+  padding: 1px 6px;
+  color: rgba(108, 92, 231, 0.9);
+}
+
+.si-results-v2__player-title {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}
+
+.si-results-v2__player-score {
+  font-size: 15px;
+  font-weight: 800;
   color: rgba(0, 206, 201, 0.9);
 }
 
-.si-results__actions {
-  margin-top: 20px;
+// ── ACTIONS ───────────────────────────────────────────────────────────────────
+
+.si-results-v2__actions {
   display: flex;
-  justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
-.si-results__room {
-  margin-top: 14px;
+.si-results-v2__room {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -102,7 +196,7 @@
   strong { color: rgba(255, 255, 255, 0.8); }
 }
 
-.si-results__copy {
+.si-results-v2__copy {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: rgba(255, 255, 255, 0.7);
@@ -115,39 +209,49 @@
   &:hover { background: rgba(255, 255, 255, 0.14); }
 }
 
-/* History */
-.si-results__history-card {
-  animation: fadeUp 0.5s ease 0.15s both;
+// ── HISTORY ───────────────────────────────────────────────────────────────────
+
+.si-results-v2__history-card { padding: 16px; }
+
+.si-results-v2__history-toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  padding: 4px 0;
+  transition: color 0.2s;
+
+  &:hover { color: white; }
 }
 
-.si-results__history-title {
-  margin: 0 0 16px;
-  font-size: 18px;
-}
-
-.si-results__history {
+.si-results-v2__history {
+  margin-top: 12px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
-.si-results__round {
+.si-results-v2__round {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 14px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
-.si-results__round-header {
+.si-results-v2__round-header {
   display: flex;
   gap: 10px;
   align-items: flex-start;
 }
 
-.si-results__round-num {
+.si-results-v2__round-num {
   font-size: 11px;
   font-weight: 700;
   color: rgba(108, 92, 231, 0.9);
@@ -158,46 +262,41 @@
   margin-top: 2px;
 }
 
-.si-results__round-q {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.8);
+.si-results-v2__round-q {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
   line-height: 1.4;
   text-align: left;
 }
 
-.si-results__round-answers {
+.si-results-v2__round-answers {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
 }
 
-.si-results__ans {
+.si-results-v2__ans {
   font-size: 12px;
   padding: 3px 10px;
   border-radius: 999px;
 
-  &--scored {
+  &.scored {
     background: rgba(0, 184, 148, 0.12);
     color: rgba(0, 184, 148, 0.9);
     border: 1px solid rgba(0, 184, 148, 0.25);
   }
 
-  &--miss {
-    background: rgba(255, 118, 117, 0.1);
-    color: rgba(255, 118, 117, 0.7);
-    border: 1px solid rgba(255, 118, 117, 0.2);
+  &.miss {
+    background: rgba(255, 118, 117, 0.08);
+    color: rgba(255, 118, 117, 0.65);
+    border: 1px solid rgba(255, 118, 117, 0.15);
   }
 }
 
-.si-results__majority {
-  font-size: 12px;
+.si-results-v2__majority {
+  font-size: 11px;
   margin-left: auto;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.45);
   font-style: italic;
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: translateY(0); }
 }

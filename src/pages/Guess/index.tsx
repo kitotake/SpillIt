@@ -1,8 +1,10 @@
+// src/pages/Guess/index.tsx
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/useGameStore'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
+import { Avatar } from '../../components/Avatar/AvatarGenerator'
 import { sounds, resumeAudio } from '../../utils/sounds'
 import './Guess.scss'
 
@@ -52,109 +54,131 @@ export function GuessPage() {
     navigate('/game')
   }
 
-  const allGuessed = activePlayers
-    .filter((p) => p.id !== guessTarget.id && !p.isSpectator)
-    .every((p) => p.guessAnswer)
+  const guessers = activePlayers.filter((p) => p.id !== guessTarget.id && !p.isSpectator)
+  const allGuessed = guessers.every((p) => p.guessAnswer)
 
   return (
-    <div className="si-page si-guess">
-      <div className="si-guess__header">
-        <span className="si-guess__tag">🔍 Qui a dit quoi ?</span>
-        <p className="si-guess__sub">
-          Devinez comment <strong>{guessTarget.name}</strong> a répondu à la dernière question
-        </p>
+    <div className="si-page si-guess-v2">
+      {/* Header */}
+      <div className="si-guess-v2__header">
+        <div className="si-guess-v2__badge">🔍 Devine !</div>
+        <h2 className="si-guess-v2__title">
+          Comment a répondu
+        </h2>
+        <div className="si-guess-v2__target-hero">
+          <div className="si-guess-v2__target-avatar">
+            <Avatar name={guessTarget.name} size={72} />
+            <div className="si-guess-v2__target-ring" />
+          </div>
+          <div className="si-guess-v2__target-name">{guessTarget.name}</div>
+          <div className="si-guess-v2__target-score">{guessTarget.score} pts</div>
+        </div>
       </div>
 
-      <Card className="si-guess__card">
-        <p className="si-guess__question">
+      <Card className="si-guess-v2__card">
+        {/* Question recap */}
+        <p className="si-guess-v2__question">
           « {lastRecord?.question.text} »
         </p>
 
-        {!guessReveal && !isTarget && (
+        {/* Not yet revealed */}
+        {!guessReveal && (
           <>
-            <p className="si-guess__prompt">
-              {me?.guessAnswer
-                ? `Tu as répondu : ${me.guessAnswer === 'yes' ? '✅ Oui' : '❌ Non'} — attends les autres…`
-                : `Tu penses que ${guessTarget.name} a répondu…`
-              }
-            </p>
-            {!me?.guessAnswer && (
-              <div className="si-guess__btns">
-                <button
-                  className="si-guess__btn si-guess__btn--yes"
-                  onClick={() => handleGuess('yes')}
-                >
-                  ✅ Oui
-                </button>
-                <button
-                  className="si-guess__btn si-guess__btn--no"
-                  onClick={() => handleGuess('no')}
-                >
-                  ❌ Non
-                </button>
+            {!isTarget ? (
+              <>
+                {!me?.guessAnswer ? (
+                  <div className="si-guess-v2__btns">
+                    <button
+                      className="si-guess-v2__btn si-guess-v2__btn--yes"
+                      onClick={() => handleGuess('yes')}
+                    >
+                      <span className="si-guess-v2__btn-emoji">✅</span>
+                      <span>Oui</span>
+                    </button>
+                    <button
+                      className="si-guess-v2__btn si-guess-v2__btn--no"
+                      onClick={() => handleGuess('no')}
+                    >
+                      <span className="si-guess-v2__btn-emoji">❌</span>
+                      <span>Non</span>
+                    </button>
+                  </div>
+                ) : (
+                  <p className="si-guess-v2__waiting-msg">
+                    Tu as dit <strong>{me?.guessAnswer === 'yes' ? 'Oui ✅' : 'Non ❌'}</strong> — en attente des autres…
+                  </p>
+                )}
+
+                {/* Mini waiting dots */}
+                <div className="si-guess-v2__waiters">
+                  {guessers.map((p) => (
+                    <div key={p.id} className={`si-guess-v2__waiter ${p.guessAnswer ? 'done' : ''}`}>
+                      <Avatar name={p.name} size={32} />
+                      <span>{p.guessAnswer ? '✅' : '⏳'}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="si-guess-v2__target-wait">
+                <div className="si-guess-v2__target-wait-emoji">🎯</div>
+                <p>C'est toi qu'on devine ! Attends…</p>
+                <div className="si-guess-v2__waiters">
+                  {guessers.map((p) => (
+                    <div key={p.id} className={`si-guess-v2__waiter ${p.guessAnswer ? 'done' : ''}`}>
+                      <Avatar name={p.name} size={32} />
+                      <span>{p.guessAnswer ? '✅' : '⏳'}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
+
+            <div className="si-guess-v2__actions">
+              <Button
+                onClick={handleReveal}
+                disabled={!allGuessed && !isTarget}
+              >
+                Révéler les réponses
+              </Button>
+            </div>
           </>
         )}
 
-        {!guessReveal && isTarget && (
-          <p className="si-guess__prompt si-guess__prompt--target">
-            🎯 C'est toi ! Les autres devinent ta réponse…
-          </p>
-        )}
-
+        {/* Revealed */}
         {guessReveal && (
-          <div className="si-guess__results">
-            <div className="si-guess__answer-reveal">
-              <span className="si-guess__answer-label">Réponse de {guessTarget.name} :</span>
-              <span className={`si-guess__answer-val ${targetAnswer === 'yes' ? 'yes' : 'no'}`}>
+          <div className="si-guess-v2__results">
+            <div className="si-guess-v2__reveal-answer">
+              <span className="si-guess-v2__reveal-label">La vraie réponse de {guessTarget.name} :</span>
+              <span className={`si-guess-v2__reveal-val ${targetAnswer}`}>
                 {targetAnswer === 'yes' ? '✅ Oui' : '❌ Non'}
               </span>
             </div>
-            <div className="si-guess__guesses">
-              {activePlayers
-                .filter((p) => p.id !== guessTarget.id)
-                .map((p) => {
-                  const correct = p.guessAnswer === targetAnswer
-                  return (
-                    <div key={p.id} className={`si-guess__guess-row ${correct ? 'correct' : 'wrong'}`}>
-                      <span>{p.name}</span>
-                      <span>{p.guessAnswer === 'yes' ? '✅' : '❌'}</span>
-                      <span>{correct ? '+1 🎉' : '—'}</span>
-                    </div>
-                  )
-                })}
+
+            <div className="si-guess-v2__scores-grid">
+              {guessers.map((p) => {
+                const correct = p.guessAnswer === targetAnswer
+                return (
+                  <div key={p.id} className={`si-guess-v2__score-row ${correct ? 'correct' : 'wrong'}`}>
+                    <Avatar name={p.name} size={36} />
+                    <span className="si-guess-v2__score-name">{p.name}</span>
+                    <span className="si-guess-v2__score-guess">
+                      {p.guessAnswer === 'yes' ? '✅' : '❌'}
+                    </span>
+                    <span className="si-guess-v2__score-result">
+                      {correct ? '🎉 +1' : '😬 0'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="si-guess-v2__actions">
+              <Button onClick={handleContinue}>Continuer →</Button>
             </div>
           </div>
         )}
-
-        <div className="si-guess__actions">
-          {!guessReveal ? (
-            <Button onClick={handleReveal} disabled={!allGuessed && !isTarget}>
-              Révéler les réponses
-            </Button>
-          ) : (
-            <Button onClick={handleContinue}>
-              Continuer →
-            </Button>
-          )}
-        </div>
       </Card>
-
-      {!guessReveal && !isTarget && (
-        <div className="si-guess__waiting">
-          {activePlayers
-            .filter((p) => p.id !== guessTarget.id)
-            .map((p) => (
-              <span
-                key={p.id}
-                className={`si-guess__wait-dot ${p.guessAnswer ? 'done' : ''}`}
-              >
-                {p.guessAnswer ? '✅' : '⏳'} {p.name}
-              </span>
-            ))}
-        </div>
-      )}
     </div>
   )
 }

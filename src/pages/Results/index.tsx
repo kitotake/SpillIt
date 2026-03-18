@@ -1,11 +1,42 @@
+// src/pages/Results/index.tsx
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Confetti } from '../../components/Confetti/Confetti'
+import { Avatar } from '../../components/Avatar/AvatarGenerator'
 import { useGameStore } from '../../store/useGameStore'
 import { sounds, resumeAudio } from '../../utils/sounds'
 import './Results.scss'
+
+// Fun dynamic titles based on performance
+function getPlayerTitle(player: { score: number; streak: number; name: string }, sorted: { score: number; name: string }[], history: any[]): string {
+  const rank = sorted.findIndex((p) => p.name === player.name)
+  const total = sorted.length
+  const maxScore = sorted[0]?.score ?? 0
+  const allAnswers = history.flatMap(r => Object.entries(r.answers))
+  const yesCount = allAnswers.filter(([n, a]) => n === player.name && a === 'yes').length
+  const noCount = allAnswers.filter(([n, a]) => n === player.name && a === 'no').length
+
+  if (rank === 0 && maxScore === 0) return '🏳️ Abstentionniste en chef'
+  if (rank === 0) {
+    if (player.streak >= 4) return '🔥 Génie absolu'
+    if (player.score >= total * 3) return '🧠 Le Cerveau'
+    return '👑 Le Grand Gagnant'
+  }
+  if (rank === sorted.length - 1) {
+    if (player.score === 0) return '💀 Score négatif de l\'existence'
+    const loserTitles = ['🐢 La Tortue Perdue', '🍄 Dernier et Fier', '🎭 L\'Anti-Conformiste', '🌈 L\'Original Incompris']
+    return loserTitles[player.name.length % loserTitles.length]
+  }
+  if (yesCount > noCount * 2) return '✅ Éternel Optimiste'
+  if (noCount > yesCount * 2) return '❌ Le Grand Pessimiste'
+  if (player.streak >= 3) return '🔥 En Feu'
+  if (rank === 1) return '🥈 L\'Éternel Second'
+  if (rank === 2) return '🥉 Le Troisième Mousquetaire'
+  const midTitles = ['🎯 Stratège Moyen', '🌊 Dans la Moyenne', '🦆 Ni Chaud Ni Froid']
+  return midTitles[rank % midTitles.length]
+}
 
 export function ResultsPage() {
   const navigate = useNavigate()
@@ -18,6 +49,7 @@ export function ResultsPage() {
   const [confetti, setConfetti] = useState(false)
   const [copied, setCopied] = useState(false)
   const [exported, setExported] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const resultsRef = useRef<HTMLDivElement>(null)
 
   const activePlayers = players.filter((p) => !p.isSpectator)
@@ -54,7 +86,10 @@ export function ResultsPage() {
 
   const onShare = () => {
     const text = sorted
-      .map((p, i) => `${['🥇','🥈','🥉'][i] ?? `${i+1}.`} ${p.name} — ${p.score} pt${p.score !== 1 ? 's' : ''}`)
+      .map((p, i) => {
+        const title = getPlayerTitle(p, sorted, history)
+        return `${['🥇','🥈','🥉'][i] ?? `${i+1}.`} ${p.name} — ${p.score}pts ${title}`
+      })
       .join('\n')
     const shareText = `🌶️ Spill It! — Room ${roomId}\n${text}\n\nJoue sur SpillIt!`
     if (navigator.share) {
@@ -62,7 +97,7 @@ export function ResultsPage() {
     } else {
       navigator.clipboard.writeText(shareText).then(() => {
         sounds.click()
-        alert('Résultats copiés dans le presse-papier !')
+        alert('Résultats copiés !')
       })
     }
   }
@@ -73,7 +108,10 @@ export function ResultsPage() {
       `Date: ${new Date().toLocaleDateString('fr-FR')}`,
       '',
       '=== CLASSEMENT ===',
-      ...sorted.map((p, i) => `${i + 1}. ${p.name} — ${p.score} pts${p.streak >= 2 ? ` (🔥 streak x${p.streak})` : ''}`),
+      ...sorted.map((p, i) => {
+        const title = getPlayerTitle(p, sorted, history)
+        return `${i + 1}. ${p.name} — ${p.score} pts ${title}${p.streak >= 2 ? ` (🔥 streak x${p.streak})` : ''}`
+      }),
       '',
       '=== HISTORIQUE ===',
       ...history.map((r, i) =>
@@ -97,88 +135,112 @@ export function ResultsPage() {
   const medals = ['🥇', '🥈', '🥉']
 
   return (
-    <div className="si-page si-results">
+    <div className="si-page si-results-v2">
       <Confetti active={confetti} />
-      <div className="si-results__inner" ref={resultsRef}>
-        <Card className="si-results__card">
-          <h1 className="si-results__title">Résultats 🏆</h1>
+      <div className="si-results-v2__inner" ref={resultsRef}>
 
-          {winner && (
-            <div className={`si-results__winner ${iWon ? 'si-results__winner--me' : ''}`}>
-              {iWon
-                ? `🎉 Tu remportes la partie avec ${winner.score} point${winner.score !== 1 ? 's' : ''} !`
-                : `🏆 ${winner.name} remporte la partie avec ${winner.score} point${winner.score !== 1 ? 's' : ''} !`}
-            </div>
-          )}
+        {/* WIN BANNER */}
+        <div className={`si-results-v2__banner ${iWon ? 'si-results-v2__banner--win' : ''}`}>
+          <div className="si-results-v2__banner-emoji">{iWon ? '🏆' : '🎮'}</div>
+          <div className="si-results-v2__banner-text">
+            {iWon
+              ? `Tu remportes la partie, ${winner.name} !`
+              : winner
+              ? `${winner.name} remporte la partie !`
+              : 'Partie terminée !'}
+          </div>
+          {iWon && <div className="si-results-v2__banner-sub">avec {winner.score} point{winner.score !== 1 ? 's' : ''}</div>}
+        </div>
 
-          <div className="si-results__table">
-            <div className="si-results__row si-results__row--header">
-              <span>Rang</span>
-              <span>Joueur</span>
-              <span>Streak</span>
-              <span>Score</span>
-            </div>
-            {sorted.map((p, index) => (
+        {/* PODIUM */}
+        <div className="si-results-v2__podium-wrap">
+          {sorted.map((player, index) => {
+            const isMe = player.name === playerName
+            const title = getPlayerTitle(player, sorted, history)
+            return (
               <div
-                className={`si-results__row ${p.name === playerName ? 'si-results__row--me' : ''}`}
-                key={p.id}
-                style={{ animationDelay: `${index * 0.08}s` }}
+                key={player.id}
+                className={`si-results-v2__player-card ${isMe ? 'me' : ''} rank-${index}`}
+                style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <span>{medals[index] ?? index + 1}</span>
-                <span>{p.name}{p.name === playerName && ' (toi)'}</span>
-                <span>{p.streak >= 2 ? `🔥 x${p.streak}` : '—'}</span>
-                <span className="si-results__score">{p.score} pt{p.score !== 1 ? 's' : ''}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="si-results__actions">
-            <Button onClick={onRestart}>🔄 Rejouer</Button>
-            <Button variant="secondary" onClick={onShare}>📤 Partager</Button>
-            <Button variant="secondary" onClick={onExport}>
-              {exported ? '✅ Exporté !' : '📥 Exporter'}
-            </Button>
-          </div>
-
-          <div className="si-results__room">
-            <span>Room : <strong>{roomId}</strong></span>
-            <button className="si-results__copy" onClick={onCopyRoom}>
-              {copied ? '✅ Copié !' : '📋 Copier'}
-            </button>
-          </div>
-        </Card>
-
-        {history.length > 0 && (
-          <Card className="si-results__history-card">
-            <h2 className="si-results__history-title">📜 Historique des rounds</h2>
-            <div className="si-results__history">
-              {history.map((round, i) => (
-                <div className="si-results__round" key={i}>
-                  <div className="si-results__round-header">
-                    <span className="si-results__round-num">Q{i + 1}</span>
-                    <span className="si-results__round-q">{round.question.text}</span>
+                <div className="si-results-v2__player-rank">
+                  {medals[index] ?? <span className="si-results-v2__rank-num">{index + 1}</span>}
+                </div>
+                <div className="si-results-v2__player-avatar">
+                  <Avatar name={player.name} size={index === 0 ? 64 : 48} />
+                  {player.streak >= 2 && (
+                    <span className="si-results-v2__player-streak-badge">🔥{player.streak}</span>
+                  )}
+                </div>
+                <div className="si-results-v2__player-details">
+                  <div className="si-results-v2__player-name">
+                    {player.name}{isMe && <span className="si-results-v2__me-tag">toi</span>}
                   </div>
-                  <div className="si-results__round-answers">
-                    {Object.entries(round.answers).map(([name, ans]) => (
-                      <span
-                        key={name}
-                        className={`si-results__ans ${
-                          ans === round.majority || round.majority === 'tie'
-                            ? 'si-results__ans--scored'
-                            : 'si-results__ans--miss'
-                        }`}
-                      >
-                        {ans === 'yes' ? '✅' : ans === 'no' ? '❌' : '—'} {name}
-                        {round.streakBonuses?.includes(name) && ' 🔥+1'}
-                      </span>
-                    ))}
-                    <span className="si-results__majority">
-                      Majorité: {round.majority === 'yes' ? '✅ Oui' : round.majority === 'no' ? '❌ Non' : '🤝 Égalité'}
-                    </span>
+                  <div className="si-results-v2__player-title">{title}</div>
+                  <div className="si-results-v2__player-score">
+                    {player.score} pt{player.score !== 1 ? 's' : ''}
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* ACTIONS */}
+        <div className="si-results-v2__actions">
+          <Button onClick={onRestart}>🔄 Rejouer</Button>
+          <Button variant="secondary" onClick={onShare}>📤 Partager</Button>
+          <Button variant="secondary" onClick={onExport}>
+            {exported ? '✅ Exporté !' : '📥 Exporter'}
+          </Button>
+        </div>
+
+        <div className="si-results-v2__room">
+          <span>Room : <strong>{roomId}</strong></span>
+          <button className="si-results-v2__copy" onClick={onCopyRoom}>
+            {copied ? '✅ Copié !' : '📋 Copier'}
+          </button>
+        </div>
+
+        {/* HISTORY TOGGLE */}
+        {history.length > 0 && (
+          <Card className="si-results-v2__history-card">
+            <button
+              className="si-results-v2__history-toggle"
+              onClick={() => setShowHistory((v) => !v)}
+            >
+              {showHistory ? '▲' : '▼'} 📜 Historique des rounds ({history.length})
+            </button>
+            {showHistory && (
+              <div className="si-results-v2__history">
+                {history.map((round, i) => (
+                  <div className="si-results-v2__round" key={i}>
+                    <div className="si-results-v2__round-header">
+                      <span className="si-results-v2__round-num">Q{i + 1}</span>
+                      <span className="si-results-v2__round-q">{round.question.text}</span>
+                    </div>
+                    <div className="si-results-v2__round-answers">
+                      {Object.entries(round.answers).map(([name, ans]) => (
+                        <span
+                          key={name}
+                          className={`si-results-v2__ans ${
+                            ans === round.majority || round.majority === 'tie'
+                              ? 'scored'
+                              : 'miss'
+                          }`}
+                        >
+                          {ans === 'yes' ? '✅' : ans === 'no' ? '❌' : '—'} {name}
+                          {round.streakBonuses?.includes(name) && ' 🔥+1'}
+                        </span>
+                      ))}
+                      <span className="si-results-v2__majority">
+                        {round.majority === 'yes' ? '✅ Majorité Oui' : round.majority === 'no' ? '❌ Majorité Non' : '🤝 Égalité'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         )}
       </div>
