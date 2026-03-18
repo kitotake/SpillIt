@@ -1,53 +1,179 @@
 .si-question-card {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 18px;
-  padding: 22px 24px;
   display: grid;
   gap: 18px;
   max-width: 640px;
   margin: 0 auto;
 }
 
-.si-question-card__title {
+.si-question-card__category {
+  min-height: 20px;
+}
+
+.si-question-card__tag {
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.12em;
+  color: rgba(108, 92, 231, 0.9);
+  background: rgba(108, 92, 231, 0.12);
+  border-radius: 999px;
+  padding: 2px 10px;
 }
 
 .si-question-card__text {
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1.4;
   margin: 0;
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 500;
+  animation: fadeSlide 0.4s ease both;
+}
+
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .si-question-card__actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 14px;
-  justify-content: center;
 }
 
-.si-question-card__reveal {
+.si-question-card__btn {
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 16px;
+  padding: 18px 12px;
+  font-weight: 700;
+  font-size: 16px;
   display: flex;
-  justify-content: center;
-  gap: 18px;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  position: relative;
+  user-select: none;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &--yes {
+    background: rgba(0, 184, 148, 0.12);
+    border-color: rgba(0, 184, 148, 0.3);
+    color: rgba(0, 184, 148, 0.9);
+  }
+
+  &--no {
+    background: rgba(255, 118, 117, 0.12);
+    border-color: rgba(255, 118, 117, 0.3);
+    color: rgba(255, 118, 117, 0.9);
+  }
+
+  &.selected {
+    border-width: 2px;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+
+    &.si-question-card__btn--yes {
+      background: rgba(0, 184, 148, 0.22);
+      border-color: rgba(0, 184, 148, 0.7);
+    }
+
+    &.si-question-card__btn--no {
+      background: rgba(255, 118, 117, 0.22);
+      border-color: rgba(255, 118, 117, 0.7);
+    }
+  }
+
+  &.winner {
+    animation: pulse 0.5s ease;
+  }
+}
+
+.si-question-card__btn-emoji {
+  font-size: 26px;
+}
+
+.si-question-card__count {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.9;
+  animation: countPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes countPop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0px rgba(255,255,255,0.2); }
+  50% { box-shadow: 0 0 0 8px rgba(255,255,255,0); }
+}
+
+.si-question-card__bar-wrap {
+  display: flex;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.07);
+  gap: 2px;
+}
+
+.si-question-card__bar {
+  border-radius: 999px;
+  transition: width 0.6s cubic-bezier(0.34, 1.2, 0.64, 1);
+
+  &--yes {
+    background: rgba(0, 184, 148, 0.8);
+  }
+
+  &--no {
+    background: rgba(255, 118, 117, 0.8);
+  }
+}
+
+.si-question-card__result {
+  text-align: center;
+  font-size: 14px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.8);
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  animation: fadeIn 0.3s ease;
 }
 
 .si-question-card__skip {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.4);
   font-size: 13px;
   margin: 0 auto;
   cursor: pointer;
   text-decoration: underline;
-  padding: 8px 0;
+  padding: 6px 0;
+  display: block;
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.7);
+  }
 }
 
-.si-question-card__skip:hover {
-  color: rgba(255, 255, 255, 0.85);
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

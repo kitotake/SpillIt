@@ -14,6 +14,8 @@ export function HomePage() {
   const navigate = useNavigate()
   const setPlayerName = useGameStore((s) => s.setPlayerName)
   const setRoomId = useGameStore((s) => s.setRoomId)
+  const addPlayer = useGameStore((s) => s.addPlayer)
+  const setSettings = useGameStore((s) => s.setSettings)
   const reset = useGameStore((s) => s.reset)
   const [name, setName] = useState('')
   const [room, setRoom] = useState('')
@@ -23,14 +25,27 @@ export function HomePage() {
 
   const onCreate = () => {
     const generated = makeRoomId()
-    setPlayerName(name)
+    setPlayerName(name.trim())
     setRoomId(generated)
+    setSettings({ soloMode: false })
+    addPlayer(name.trim())
     navigate('/lobby')
   }
 
   const onJoin = () => {
-    setPlayerName(name)
+    setPlayerName(name.trim())
     setRoomId(room.toUpperCase())
+    setSettings({ soloMode: false })
+    addPlayer(name.trim())
+    navigate('/lobby')
+  }
+
+  const onSolo = () => {
+    const generated = makeRoomId()
+    setPlayerName(name.trim())
+    setRoomId(generated)
+    setSettings({ soloMode: true })
+    addPlayer(name.trim())
     navigate('/lobby')
   }
 
@@ -42,15 +57,20 @@ export function HomePage() {
 
   const helpText = useMemo(() => {
     if (!name.trim()) return 'Choisis un pseudo pour démarrer.'
-    if (!room.trim()) return 'Entre un code de salon ou crée-en un nouveau.'
+    if (!room.trim()) return 'Entre un code de salon ou crée une partie.'
     return ''
   }, [name, room])
 
   return (
     <div className="si-page si-home">
       <Card className="si-home__card">
-        <h1 className="si-home__title">Spill It!</h1>
-        <p className="si-home__subtitle">Joue avec des potes. Réponses rapides. Rires garantis.</p>
+        <div className="si-home__hero">
+          <span className="si-home__emoji">🌶️</span>
+          <h1 className="si-home__title">Spill It!</h1>
+        </div>
+        <p className="si-home__subtitle">
+          Joue avec des potes. Réponses rapides. Rires garantis.
+        </p>
 
         <div className="si-home__form">
           <Input
@@ -74,12 +94,21 @@ export function HomePage() {
 
           <div className="si-home__create">
             <Button variant="primary" disabled={!canCreate} onClick={onCreate}>
-              Créer une partie
+              ✨ Créer une partie
             </Button>
-            <Button variant="secondary" onClick={onReset}>
-              Réinitialiser
+            <Button
+              variant="secondary"
+              disabled={!canCreate}
+              onClick={onSolo}
+              className="si-home__solo-btn"
+            >
+              🎮 Mode Solo
             </Button>
           </div>
+
+          <button className="si-home__reset" onClick={onReset} type="button">
+            Réinitialiser
+          </button>
 
           {helpText && <p className="si-home__hint">{helpText}</p>}
         </div>

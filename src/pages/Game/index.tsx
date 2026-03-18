@@ -26,34 +26,36 @@ export function GamePage() {
   const total = questions.length
 
   useEffect(() => {
-    if (phase !== 'game') {
-      navigate('/')
-    }
+    if (phase === 'results') navigate('/results')
   }, [phase, navigate])
+
+  useEffect(() => {
+    if (phase !== 'game' && phase !== 'results') navigate('/')
+  }, [])
 
   useEffect(() => {
     if (!currentQuestion) return
     setReveal(false)
     setTimerSeconds(settings.secondsPerQuestion)
-  }, [currentQuestion, setReveal, setTimerSeconds, settings.secondsPerQuestion])
+  }, [questionIndex])
 
   useEffect(() => {
     if (reveal) return
     const interval = window.setInterval(() => {
       setTimerSeconds((t: number) => {
-        const next = t - 1
-        if (next <= 0) {
+        if (t <= 1) {
           setReveal(true)
           return 0
         }
-        return next
+        return t - 1
       })
     }, 1000)
     return () => window.clearInterval(interval)
-  }, [reveal, setReveal, setTimerSeconds])
+  }, [reveal, questionIndex])
 
   const yesCount = players.filter((p) => p.answer === 'yes').length
   const noCount = players.filter((p) => p.answer === 'no').length
+  const majority = yesCount > noCount ? 'yes' : noCount > yesCount ? 'no' : 'tie'
 
   const me = useMemo(() => players.find((p) => p.name === playerName), [players, playerName])
 
@@ -63,52 +65,64 @@ export function GamePage() {
     setReveal(true)
   }
 
-  const handleNext = () => {
-    nextQuestion()
-  }
-
-  if (!currentQuestion) {
-    return (
-      <div className="si-page si-game">
-        <Card>
-          <h1>Plus de questions</h1>
-          <p>La partie est terminée, on affiche les résultats.</p>
-          <Button onClick={() => navigate('/results')}>Voir les résultats</Button>
-        </Card>
-      </div>
-    )
-  }
+  if (!currentQuestion) return null
 
   return (
     <div className="si-page si-game">
       <div className="si-game__top">
         <div className="si-game__progress">
           <span>
-            Question {questionIndex + 1} / {total}
+            Question <strong>{questionIndex + 1}</strong> / {total}
           </span>
-          <span>Joueurs: {players.length}</span>
+          {!settings.soloMode && <span>👥 {players.length} joueurs</span>}
         </div>
-        <Timer seconds={timerSeconds} maxSeconds={settings.secondsPerQuestion} />
+        <Timer
+          seconds={timerSeconds}
+          maxSeconds={settings.secondsPerQuestion}
+          danger={timerSeconds <= 3}
+        />
       </div>
 
       <Card className="si-game__card">
         <QuestionCard
           question={currentQuestion}
           onAnswer={handleAnswer}
-          disabled={reveal || timerSeconds <= 0}
+          disabled={reveal || !!me?.answer || timerSeconds <= 0}
           reveal={reveal}
           yesCount={yesCount}
           noCount={noCount}
+          majority={majority}
+          myAnswer={me?.answer}
         />
 
         <div className="si-game__actions">
           {reveal ? (
-            <Button onClick={handleNext}>Suivant</Button>
+            <Button onClick={nextQuestion} className="si-game__next-btn">
+              {questionIndex + 1 >= total ? '🏆 Voir les résultats' : 'Question suivante →'}
+            </Button>
           ) : (
-            <span className="si-game__hint">Réponds avant la fin du timer.</span>
+            <span className="si-game__hint">
+              {me?.answer
+                ? `✅ Répondu ! En attente des autres...`
+                : `⏳ Réponds avant la fin du timer.`}
+            </span>
           )}
         </div>
       </Card>
+
+      {!settings.soloMode && (
+        <div className="si-game__players">
+          {players.map((p) => (
+            <span
+              key={p.id}
+              className={`si-game__player-dot ${p.answer ? 'answered' : ''}`}
+              title={p.name}
+            >
+              {p.answer ? '✅' : '⏳'} {p.name}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

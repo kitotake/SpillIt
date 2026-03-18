@@ -8,6 +8,26 @@
 .si-home__card {
   width: min(560px, 100%);
   text-align: center;
+  animation: fadeUp 0.5s ease both;
+}
+
+.si-home__hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.si-home__emoji {
+  font-size: 42px;
+  animation: wiggle 2.5s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
 }
 
 .si-home__title {
@@ -18,32 +38,67 @@
 }
 
 .si-home__subtitle {
-  margin: 10px 0 22px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 16px;
+  margin: 8px 0 24px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 15px;
 }
 
 .si-home__form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .si-home__join {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 12px;
+  gap: 10px;
 }
 
 .si-home__create {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   justify-content: center;
   flex-wrap: wrap;
+}
+
+.si-home__create > * {
+  flex: 1 1 140px;
+}
+
+.si-home__solo-btn {
+  border-color: rgba(0, 206, 201, 0.5) !important;
+  color: rgba(0, 206, 201, 0.9) !important;
+}
+
+.si-home__reset {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px;
+  transition: color 0.2s;
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.6);
+  }
 }
 
 .si-home__hint {
   margin: 0;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.45);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

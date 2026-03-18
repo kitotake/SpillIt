@@ -7,6 +7,18 @@ import { PlayerList } from '../../components/PlayerList/PlayerList'
 import { useGameStore } from '../../store/useGameStore'
 import './Lobby.scss'
 
+const CATEGORIES = [
+  { value: 'fun', label: '😄 Fun' },
+  { value: 'spicy', label: '🌶️ Spicy' },
+  { value: 'wtf', label: '🤯 WTF' },
+  { value: 'deep', label: '🧠 Deep' },
+  { value: 'amour', label: '❤️ Amour' },
+  { value: 'voyage', label: '✈️ Voyage' },
+  { value: 'musique', label: '🎵 Musique' },
+  { value: 'cinema', label: '🎬 Cinéma' },
+  { value: 'sport', label: '⚽ Sport' },
+]
+
 export function LobbyPage() {
   const navigate = useNavigate()
   const roomId = useGameStore((s) => s.roomId)
@@ -15,6 +27,7 @@ export function LobbyPage() {
   const settings = useGameStore((s) => s.settings)
   const setSettings = useGameStore((s) => s.setSettings)
   const addPlayer = useGameStore((s) => s.addPlayer)
+  const togglePlayerReady = useGameStore((s) => s.togglePlayerReady)
   const startGame = useGameStore((s) => s.startGame)
   const reset = useGameStore((s) => s.reset)
 
@@ -26,14 +39,21 @@ export function LobbyPage() {
     }
   }, [navigate, playerName, roomId])
 
+  // Solo mode: auto-ready the single player
   const me = useMemo(() => players.find((p) => p.name === playerName), [players, playerName])
+
+  useEffect(() => {
+    if (settings.soloMode && me && !me.ready) {
+      togglePlayerReady(me.id)
+    }
+  }, [settings.soloMode, me?.id])
 
   const readyCount = players.filter((p) => p.ready).length
   const canStart = players.length > 0 && readyCount === players.length
 
   const onAddPlayer = () => {
     if (!newName.trim()) return
-    addPlayer(newName)
+    addPlayer(newName.trim())
     setNewName('')
   }
 
@@ -50,10 +70,19 @@ export function LobbyPage() {
   return (
     <div className="si-page si-lobby">
       <div className="si-lobby__header">
-        <h1>Lobby</h1>
+        <h1>
+          {settings.soloMode ? '🎮 Mode Solo' : '🏠 Lobby'}
+        </h1>
         <div className="si-lobby__meta">
-          <span>Room: <strong>{roomId}</strong></span>
-          <span>Joueurs: <strong>{players.length}</strong></span>
+          <span className="si-lobby__badge">
+            Room: <strong>{roomId}</strong>
+          </span>
+          <span className="si-lobby__badge">
+            Joueurs: <strong>{players.length}</strong>
+          </span>
+          {settings.soloMode && (
+            <span className="si-lobby__badge si-lobby__badge--solo">Solo</span>
+          )}
         </div>
       </div>
 
@@ -61,17 +90,19 @@ export function LobbyPage() {
         <Card className="si-lobby__card">
           <h2>Joueurs</h2>
           <PlayerList />
-          <div className="si-lobby__add">
-            <Input
-              value={newName}
-              placeholder="Ajouter un joueur..."
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && onAddPlayer()}
-            />
-            <Button variant="secondary" onClick={onAddPlayer} disabled={!newName.trim()}>
-              +
-            </Button>
-          </div>
+          {!settings.soloMode && (
+            <div className="si-lobby__add">
+              <Input
+                value={newName}
+                placeholder="Ajouter un joueur..."
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onAddPlayer()}
+              />
+              <Button variant="secondary" onClick={onAddPlayer} disabled={!newName.trim()}>
+                +
+              </Button>
+            </div>
+          )}
         </Card>
 
         <Card className="si-lobby__card">
@@ -92,9 +123,11 @@ export function LobbyPage() {
               <input
                 type="number"
                 min={6}
-                max={30}
+                max={60}
                 value={settings.secondsPerQuestion}
-                onChange={(e) => setSettings({ secondsPerQuestion: Number(e.target.value) })}
+                onChange={(e) =>
+                  setSettings({ secondsPerQuestion: Number(e.target.value) })
+                }
               />
             </label>
             <label>
@@ -103,26 +136,29 @@ export function LobbyPage() {
                 value={settings.category}
                 onChange={(e) => setSettings({ category: e.target.value })}
               >
-                <option value="fun">Fun</option>
-                <option value="spicy">Spicy</option>
-                <option value="wtf">WTF</option>
-                <option value="deep">Deep</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
 
           <div className="si-lobby__actions">
             <Button onClick={onStart} disabled={!canStart || !me}>
-              Démarrer la partie
+              🚀 Démarrer la partie
             </Button>
             <Button variant="danger" onClick={onReset}>
-              Retour menu
+              ← Retour menu
             </Button>
           </div>
 
-          <p className="si-lobby__hint">
-            Les joueurs doivent être prêts pour démarrer. (Clique sur "Ready" à côté de ton nom)
-          </p>
+          {!settings.soloMode && (
+            <p className="si-lobby__hint">
+              {readyCount}/{players.length} joueurs prêts — tous doivent être ready pour démarrer.
+            </p>
+          )}
         </Card>
       </div>
     </div>

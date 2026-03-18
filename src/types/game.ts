@@ -18,4 +18,12 @@ export type GameSettings = {
   questionCount: number
   secondsPerQuestion: number
   category: string
+  soloMode: boolean
+}
+
+export type RoundRecord = {
+  question: Question
+  answers: Record<string, 'yes' | 'no' | undefined>
+  majority: 'yes' | 'no' | 'tie'
+  scorers: string[]
 }

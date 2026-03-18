@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { GamePhase, GameSettings, Player, Question } from '../types/game'
+import type { GamePhase, GameSettings, Player, Question, RoundRecord } from '../types/game'
 import quizz from '../quizz.json'
 
 const makeId = () => Math.random().toString(36).slice(2, 10)
@@ -19,6 +19,8 @@ export type GameStore = {
   questionIndex: number
   reveal: boolean
   timerSeconds: number
+  history: RoundRecord[]
+
   reset: () => void
   setPlayerName: (name: string) => void
   setRoomId: (id: string) => void
@@ -27,6 +29,7 @@ export type GameStore = {
   setSettings: (settings: Partial<GameSettings>) => void
   startGame: () => void
   setAnswer: (playerId: string, answer: Player['answer']) => void
+  /** Commits the current round to history and advances (or ends) the game */
   nextQuestion: () => void
   finishGame: () => void
   setReveal: (reveal: boolean) => void
@@ -37,6 +40,15 @@ const defaultSettings: GameSettings = {
   questionCount: 6,
   secondsPerQuestion: 12,
   category: 'fun',
+  soloMode: false,
+}
+
+function computeMajority(players: Player[]): 'yes' | 'no' | 'tie' {
+  const yes = players.filter((p) => p.answer === 'yes').length
+  const no = players.filter((p) => p.answer === 'no').length
+  if (yes > no) return 'yes'
+  if (no > yes) return 'no'
+  return 'tie'
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -49,6 +61,7 @@ export const useGameStore = create<GameStore>((set) => ({
   questionIndex: 0,
   reveal: false,
   timerSeconds: defaultSettings.secondsPerQuestion,
+  history: [],
 
   reset: () =>
     set({
@@ -61,6 +74,7 @@ export const useGameStore = create<GameStore>((set) => ({
       questionIndex: 0,
       reveal: false,
       timerSeconds: defaultSettings.secondsPerQuestion,
+      history: [],
     }),
 
   setPlayerName: (name) => set({ playerName: name }),
@@ -69,7 +83,9 @@ export const useGameStore = create<GameStore>((set) => ({
   addPlayer: (name) =>
     set((state) => {
       if (!name.trim()) return state
-      const existing = state.players.find((p) => p.name === name.trim())
+      const existing = state.players.find(
+        (p) => p.name.toLowerCase() === name.trim().toLowerCase(),
+      )
       if (existing) return state
       const player: Player = {
         id: makeId(),
@@ -87,7 +103,8 @@ export const useGameStore = create<GameStore>((set) => ({
       ),
     })),
 
-  setSettings: (settings) => set((state) => ({ settings: { ...state.settings, ...settings } })),
+  setSettings: (settings) =>
+    set((state) => ({ settings: { ...state.settings, ...settings } })),
 
   startGame: () =>
     set((state) => {
@@ -100,6 +117,7 @@ export const useGameStore = create<GameStore>((set) => ({
         questionIndex: 0,
         reveal: false,
         timerSeconds: state.settings.secondsPerQuestion,
+        history: [],
         players: state.players.map((p) => ({ ...p, score: 0, answer: undefined })),
       }
     }),
@@ -107,28 +125,47 @@ export const useGameStore = create<GameStore>((set) => ({
   setAnswer: (playerId, answer) =>
     set((state) => ({
       players: state.players.map((p) =>
-        p.id === playerId
-          ? {
-              ...p,
-              answer,
-              score:
-                answer === 'yes' ? p.score + 1 : p.score,
-            }
-          : p,
+        p.id === playerId ? { ...p, answer } : p,
       ),
     })),
 
   nextQuestion: () =>
     set((state) => {
-      const nextIndex = state.questionIndex + 1
-      if (nextIndex >= state.questions.length) {
-        return { phase: 'results', questionIndex: nextIndex, reveal: false }
+      const currentQuestion = state.questions[state.questionIndex]
+      const majority = computeMajority(state.players)
+
+      // Award +1 to players who voted with the majority (or everyone on tie)
+      const updatedPlayers = state.players.map((p) => {
+        const scored =
+          majority === 'tie' || p.answer === majority
+        return scored && p.answer !== undefined
+          ? { ...p, score: p.score + 1 }
+          : p
+      })
+
+      const record: RoundRecord = {
+        question: currentQuestion,
+        answers: Object.fromEntries(
+          state.players.map((p) => [p.name, p.answer]),
+        ),
+        majority,
+        scorers: updatedPlayers
+          .filter(
+            (p, i) => p.score > state.players[i].score,
+          )
+          .map((p) => p.name),
       }
+
+      const nextIndex = state.questionIndex + 1
+      const isEnd = nextIndex >= state.questions.length
+
       return {
+        history: [...state.history, record],
+        players: updatedPlayers.map((p) => ({ ...p, answer: undefined })),
         questionIndex: nextIndex,
         reveal: false,
         timerSeconds: state.settings.secondsPerQuestion,
-        players: state.players.map((p) => ({ ...p, answer: undefined })),
+        phase: isEnd ? 'results' : 'game',
       }
     }),
 
@@ -138,6 +175,7 @@ export const useGameStore = create<GameStore>((set) => ({
 
   setTimerSeconds: (seconds) =>
     set((state) => ({
-      timerSeconds: typeof seconds === 'function' ? seconds(state.timerSeconds) : seconds,
+      timerSeconds:
+        typeof seconds === 'function' ? seconds(state.timerSeconds) : seconds,
     })),
 }))

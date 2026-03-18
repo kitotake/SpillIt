@@ -4,6 +4,7 @@
   display: flex;
   flex-direction: column;
   gap: 28px;
+  animation: fadeUp 0.4s ease both;
 }
 
 .si-lobby__header {
@@ -15,9 +16,28 @@
 
 .si-lobby__meta {
   display: flex;
-  gap: 18px;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.si-lobby__badge {
+  font-size: 13px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.8);
+
+  strong {
+    color: white;
+  }
+}
+
+.si-lobby__badge--solo {
+  background: rgba(0, 206, 201, 0.15);
+  border-color: rgba(0, 206, 201, 0.4);
+  color: rgba(0, 206, 201, 0.9);
 }
 
 .si-lobby__columns {
@@ -52,6 +72,17 @@
   padding: 10px 12px;
   background: rgba(255, 255, 255, 0.08);
   color: white;
+  transition: border-color 0.2s;
+
+  &:focus {
+    outline: none;
+    border-color: rgba(108, 92, 231, 0.6);
+  }
+}
+
+.si-lobby__settings select option {
+  background: #1a1a2e;
+  color: white;
 }
 
 .si-lobby__actions {
@@ -64,11 +95,16 @@
 .si-lobby__hint {
   margin-top: 14px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 @media (max-width: 900px) {
   .si-lobby__columns {
     grid-template-columns: 1fr;
   }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
 }
