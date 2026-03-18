@@ -9,7 +9,7 @@ import { sounds, resumeAudio } from '../../utils/sounds'
 import './Home.scss'
 
 function makeRoomId() {
-  return Math.random().toString(36).slice(2, 9).toUpperCase()
+  return Math.random().toString(36).slice(2, 7).toUpperCase()
 }
 
 export function HomePage() {
@@ -21,10 +21,24 @@ export function HomePage() {
   const loadGame = useGameStore((s) => s.loadGame)
   const clearSave = useGameStore((s) => s.clearSave)
   const reset = useGameStore((s) => s.reset)
+
   const [name, setName] = useState('')
   const [room, setRoom] = useState('')
   const [showSplash, setShowSplash] = useState(true)
   const [savedGame, setSavedGame] = useState<{ exists: boolean; savedAt?: number }>({ exists: false })
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [inviteRoomId, setInviteRoomId] = useState('')
+
+  // 🔗 Auto-fill room code from URL param
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const roomParam = params.get('room')
+    if (roomParam) {
+      setRoom(roomParam.toUpperCase())
+      // Clean URL without reload
+      window.history.replaceState({}, '', '/')
+    }
+  }, [])
 
   useEffect(() => {
     try {
@@ -83,9 +97,7 @@ export function HomePage() {
 
   const onResume = () => go(() => {
     const loaded = loadGame()
-    if (loaded) {
-      navigate('/game')
-    }
+    if (loaded) navigate('/game')
   })
 
   const onDiscardSave = () => {
@@ -99,6 +111,19 @@ export function HomePage() {
     setName('')
     setRoom('')
     setSavedGame({ exists: false })
+  }
+
+  // 🔗 Generate invite link for a room code
+  const onGenerateLink = () => {
+    const id = room.trim().toUpperCase() || makeRoomId()
+    if (!room.trim()) setRoom(id)
+    setInviteRoomId(id)
+    const link = `${window.location.origin}/?room=${id}`
+    navigator.clipboard.writeText(link).then(() => {
+      setLinkCopied(true)
+      sounds.click()
+      setTimeout(() => setLinkCopied(false), 2500)
+    })
   }
 
   const helpText = useMemo(() => {
@@ -142,12 +167,16 @@ export function HomePage() {
             maxLength={16}
             autoFocus
           />
+
+          {/* JOIN SECTION */}
+          <div className="si-home__section-label">Rejoindre une partie</div>
           <div className="si-home__join">
             <Input
               value={room}
               onChange={(e) => setRoom(e.target.value.toUpperCase())}
-              placeholder="Code de salon (ex: 1AB2C)"
+              placeholder="Code du salon (ex: AB12C)"
               maxLength={8}
+              onKeyDown={(e) => e.key === 'Enter' && canJoin && onJoin()}
             />
             <Button variant="secondary" disabled={!canJoin} onClick={onJoin}>
               Rejoindre
@@ -160,6 +189,20 @@ export function HomePage() {
             </button>
           )}
 
+          {/* INVITE LINK */}
+          <button
+            className={`si-home__invite-btn ${linkCopied ? 'copied' : ''}`}
+            onClick={onGenerateLink}
+            type="button"
+            disabled={!room.trim() && !canCreate}
+          >
+            {linkCopied
+              ? `✅ Lien copié ! (${inviteRoomId})`
+              : '🔗 Copier le lien d\'invitation'}
+          </button>
+
+          {/* CREATE SECTION */}
+          <div className="si-home__section-label">Nouvelle partie</div>
           <div className="si-home__create">
             <Button variant="primary" disabled={!canCreate} onClick={onCreate}>
               ✨ Créer une partie
@@ -170,7 +213,7 @@ export function HomePage() {
               onClick={onSolo}
               className="si-home__solo-btn"
             >
-              🎮 Mode Solo
+              🎮 Solo
             </Button>
           </div>
 

@@ -36,6 +36,7 @@ export function LobbyPage() {
 
   const [newName, setNewName] = useState('')
   const [copied, setCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
 
   useEffect(() => {
     if (!roomId || !playerName) navigate('/')
@@ -78,13 +79,23 @@ export function LobbyPage() {
     })
   }
 
+  // 🔗 Copy invite link
+  const onCopyLink = () => {
+    const link = `${window.location.origin}/?room=${roomId}`
+    navigator.clipboard.writeText(link).then(() => {
+      setLinkCopied(true)
+      sounds.click()
+      setTimeout(() => setLinkCopied(false), 2500)
+    })
+  }
+
   return (
     <div className="si-page si-lobby">
       <div className="si-lobby__header">
         <h1>{settings.soloMode ? '🎮 Mode Solo' : '🏠 Lobby'}</h1>
         <div className="si-lobby__meta">
           <button className="si-lobby__badge si-lobby__badge--copy" onClick={onCopyRoom}>
-            Room: <strong>{roomId}</strong> {copied ? '✅' : '📋'}
+            Code: <strong>{roomId}</strong> {copied ? '✅' : '📋'}
           </button>
           <span className="si-lobby__badge">
             Joueurs: <strong>{activePlayers.length}</strong>
@@ -95,6 +106,15 @@ export function LobbyPage() {
             <span className="si-lobby__badge si-lobby__badge--solo">Solo</span>
           )}
         </div>
+
+        {/* 🔗 Invite link */}
+        {!settings.soloMode && (
+          <button className="si-lobby__invite-link" onClick={onCopyLink}>
+            {linkCopied
+              ? '✅ Lien copié ! Envoie-le à tes amis'
+              : '🔗 Copier le lien d\'invitation'}
+          </button>
+        )}
       </div>
 
       <div className="si-lobby__columns">
@@ -105,7 +125,7 @@ export function LobbyPage() {
             <div className="si-lobby__add">
               <Input
                 value={newName}
-                placeholder="Ajouter un joueur..."
+                placeholder="Ajouter un joueur local..."
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && onAddPlayer()}
               />
@@ -140,7 +160,6 @@ export function LobbyPage() {
               />
             </label>
 
-            {/* Random all categories toggle */}
             <div className="si-lobby__toggle-row">
               <span>🎲 Toutes catégories</span>
               <button

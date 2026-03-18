@@ -44,6 +44,26 @@
   }
 }
 
+/* 🔗 Invite link button */
+.si-lobby__invite-link {
+  background: rgba(108, 92, 231, 0.12);
+  border: 1px dashed rgba(108, 92, 231, 0.4);
+  color: rgba(108, 92, 231, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 18px;
+  border-radius: 10px;
+  transition: all 0.25s ease;
+  animation: fadeIn 0.3s ease;
+
+  &:hover {
+    background: rgba(108, 92, 231, 0.22);
+    border-color: rgba(108, 92, 231, 0.65);
+    color: rgba(108, 92, 231, 1);
+  }
+}
+
 .si-lobby__columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -90,7 +110,6 @@
   color: white;
 }
 
-/* Toggle row */
 .si-lobby__toggle-row {
   display: flex;
   align-items: center;
@@ -144,4 +163,9 @@
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
