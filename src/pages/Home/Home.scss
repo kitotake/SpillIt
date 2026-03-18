@@ -38,21 +38,80 @@
 }
 
 .si-home__subtitle {
-  margin: 8px 0 24px;
+  margin: 8px 0 20px;
   color: rgba(255, 255, 255, 0.65);
   font-size: 15px;
+}
+
+/* Save banner */
+.si-home__save-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(0, 206, 201, 0.1);
+  border: 1px solid rgba(0, 206, 201, 0.3);
+  border-radius: 12px;
+  font-size: 13px;
+  color: rgba(0, 206, 201, 0.9);
+  margin-bottom: 16px;
+  animation: fadeIn 0.3s ease;
+}
+
+.si-home__save-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.si-home__save-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+
+  &--resume {
+    background: rgba(0, 206, 201, 0.2);
+    color: rgba(0, 206, 201, 0.9);
+    &:hover { background: rgba(0, 206, 201, 0.3); }
+  }
+
+  &--discard {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.5);
+    &:hover { background: rgba(255, 255, 255, 0.14); }
+  }
 }
 
 .si-home__form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .si-home__join {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
+}
+
+.si-home__spectator-btn {
+  background: none;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: all 0.2s;
+  animation: fadeIn 0.3s ease;
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.35);
+    color: rgba(255, 255, 255, 0.7);
+  }
 }
 
 .si-home__create {
@@ -74,16 +133,13 @@
 .si-home__reset {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.3);
   font-size: 12px;
   cursor: pointer;
   text-decoration: underline;
   padding: 4px;
   transition: color 0.2s;
-
-  &:hover {
-    color: rgba(255, 255, 255, 0.6);
-  }
+  &:hover { color: rgba(255, 255, 255, 0.6); }
 }
 
 .si-home__hint {
@@ -97,7 +153,6 @@
   from { opacity: 0; transform: translateY(18px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

@@ -6,46 +6,77 @@
   display: grid;
   gap: 10px;
   transition: transform 0.18s ease, border-color 0.18s ease;
-}
 
-.si-player-card:hover {
-  transform: translateY(-3px);
-}
+  &:hover { transform: translateY(-3px); }
 
-.si-player-card.ready {
-  border-color: rgba(0, 255, 152, 0.7);
+  &.ready {
+    border-color: rgba(0, 255, 152, 0.7);
+  }
+
+  &.spectator {
+    opacity: 0.6;
+    border-style: dashed;
+  }
 }
 
 .si-player-card__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .si-player-card__name {
   font-weight: 700;
   color: rgba(255, 255, 255, 0.92);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.si-player-card__spectator-tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+
+.si-player-card__streak {
+  font-size: 12px;
+  background: rgba(253, 203, 110, 0.12);
+  border: 1px solid rgba(253, 203, 110, 0.3);
+  color: rgba(253, 203, 110, 0.9);
+  border-radius: 999px;
+  padding: 1px 7px;
 }
 
 .si-player-card__ready {
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 5px 12px;
   cursor: pointer;
   color: rgba(255, 255, 255, 0.86);
-  font-size: 13px;
+  font-size: 12px;
   transition: background 0.2s ease;
+  white-space: nowrap;
+
+  &:hover { background: rgba(255, 255, 255, 0.18); }
 }
 
-.si-player-card__ready:hover {
-  background: rgba(255, 255, 255, 0.18);
+.si-player-card__spectator-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  font-style: italic;
 }
 
 .si-player-card__meta {
   display: flex;
   gap: 12px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.65);
 }

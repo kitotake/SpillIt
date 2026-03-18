@@ -1,5 +1,4 @@
 import type { Question } from '../../types/game'
-import { Button } from '../ui/Button'
 import './QuestionCard.scss'
 
 export type QuestionCardProps = {
@@ -31,7 +30,7 @@ export function QuestionCard({
     if (!reveal || !majority) return null
     if (majority === 'tie') return '🤝 Égalité — tout le monde marque un point !'
     if (!myAnswer) return `La majorité a répondu ${majority === 'yes' ? '✅ Oui' : '❌ Non'}`
-    const scored = majority === 'tie' || myAnswer === majority
+    const scored = myAnswer === majority
     return scored
       ? `🎉 Tu es dans la majorité ! +1 point`
       : `😬 Tu étais dans la minorité. 0 point`

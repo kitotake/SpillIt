@@ -1,0 +1,68 @@
+.si-splash {
+  position: fixed;
+  inset: 0;
+  background: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+  transition: opacity 0.5s ease;
+
+  &--out {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+.si-splash__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: splashPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.si-splash__emoji {
+  font-size: 72px;
+  animation: splashWiggle 0.8s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes splashWiggle {
+  0%, 100% { transform: rotate(-8deg) scale(1); }
+  50% { transform: rotate(8deg) scale(1.1); }
+}
+
+.si-splash__title {
+  font-size: 52px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: white;
+  margin: 0;
+}
+
+.si-splash__dots {
+  display: flex;
+  gap: 8px;
+
+  span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(108, 92, 231, 0.8);
+    animation: dotPulse 1s ease-in-out infinite;
+
+    &:nth-child(2) { animation-delay: 0.15s; background: rgba(0, 206, 201, 0.8); }
+    &:nth-child(3) { animation-delay: 0.3s; }
+  }
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes splashPop {
+  from { opacity: 0; transform: scale(0.7); }
+  to { opacity: 1; transform: scale(1); }
+}

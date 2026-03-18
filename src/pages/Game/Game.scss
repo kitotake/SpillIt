@@ -22,14 +22,36 @@
   color: rgba(255, 255, 255, 0.6);
   font-size: 14px;
 
-  strong {
-    color: white;
-  }
+  strong { color: white; }
+}
+
+.si-game__progress-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.si-game__streak {
+  background: rgba(253, 203, 110, 0.15);
+  border: 1px solid rgba(253, 203, 110, 0.3);
+  color: rgba(253, 203, 110, 0.95);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  animation: streakPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes streakPop {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 .si-game__card {
   width: min(820px, 100%);
   animation: fadeUp 0.4s ease both;
+  position: relative;
+  z-index: 1;
 }
 
 .si-game__actions {
@@ -70,12 +92,20 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.5);
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 
   &.answered {
     background: rgba(0, 206, 201, 0.12);
     border-color: rgba(0, 206, 201, 0.3);
     color: rgba(0, 206, 201, 0.9);
   }
+}
+
+.si-game__dot-streak {
+  font-size: 11px;
+  opacity: 0.8;
 }
 
 @keyframes fadeUp {

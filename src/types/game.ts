@@ -1,11 +1,15 @@
-export type GamePhase = 'home' | 'lobby' | 'game' | 'results'
+export type GamePhase = 'home' | 'lobby' | 'game' | 'guess' | 'results'
 
 export type Player = {
   id: string
   name: string
   score: number
+  streak: number
   ready: boolean
   answer?: 'yes' | 'no'
+  guessTarget?: string   // who they're trying to guess
+  guessAnswer?: string   // their guess for that player's answer
+  isSpectator?: boolean
 }
 
 export type Question = {
@@ -19,6 +23,7 @@ export type GameSettings = {
   secondsPerQuestion: number
   category: string
   soloMode: boolean
+  randomAllCategories: boolean
 }
 
 export type RoundRecord = {
@@ -26,4 +31,17 @@ export type RoundRecord = {
   answers: Record<string, 'yes' | 'no' | undefined>
   majority: 'yes' | 'no' | 'tie'
   scorers: string[]
+  streakBonuses: string[]
+}
+
+export type SavedGame = {
+  phase: GamePhase
+  playerName: string
+  roomId: string
+  players: Player[]
+  settings: GameSettings
+  questions: Question[]
+  questionIndex: number
+  history: RoundRecord[]
+  savedAt: number
 }

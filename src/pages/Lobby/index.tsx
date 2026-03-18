@@ -5,6 +5,7 @@ import { Card } from '../../components/ui/Card'
 import { Input } from '../../components/ui/Input'
 import { PlayerList } from '../../components/PlayerList/PlayerList'
 import { useGameStore } from '../../store/useGameStore'
+import { sounds, resumeAudio } from '../../utils/sounds'
 import './Lobby.scss'
 
 const CATEGORIES = [
@@ -17,6 +18,8 @@ const CATEGORIES = [
   { value: 'musique', label: '🎵 Musique' },
   { value: 'cinema', label: '🎬 Cinéma' },
   { value: 'sport', label: '⚽ Sport' },
+  { value: 'philosophie', label: '🤔 Philo' },
+  { value: 'cuisine', label: '🍳 Cuisine' },
 ]
 
 export function LobbyPage() {
@@ -32,32 +35,32 @@ export function LobbyPage() {
   const reset = useGameStore((s) => s.reset)
 
   const [newName, setNewName] = useState('')
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    if (!roomId || !playerName) {
-      navigate('/')
-    }
+    if (!roomId || !playerName) navigate('/')
   }, [navigate, playerName, roomId])
 
-  // Solo mode: auto-ready the single player
   const me = useMemo(() => players.find((p) => p.name === playerName), [players, playerName])
 
   useEffect(() => {
-    if (settings.soloMode && me && !me.ready) {
-      togglePlayerReady(me.id)
-    }
+    if (settings.soloMode && me && !me.ready) togglePlayerReady(me.id)
   }, [settings.soloMode, me?.id])
 
-  const readyCount = players.filter((p) => p.ready).length
-  const canStart = players.length > 0 && readyCount === players.length
+  const activePlayers = players.filter((p) => !p.isSpectator)
+  const readyCount = activePlayers.filter((p) => p.ready).length
+  const canStart = activePlayers.length > 0 && readyCount === activePlayers.length
 
   const onAddPlayer = () => {
     if (!newName.trim()) return
     addPlayer(newName.trim())
     setNewName('')
+    sounds.click()
   }
 
   const onStart = () => {
+    resumeAudio()
+    sounds.click()
     startGame()
     navigate('/game')
   }
@@ -67,18 +70,26 @@ export function LobbyPage() {
     navigate('/')
   }
 
+  const onCopyRoom = () => {
+    navigator.clipboard.writeText(roomId).then(() => {
+      setCopied(true)
+      sounds.click()
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
   return (
     <div className="si-page si-lobby">
       <div className="si-lobby__header">
-        <h1>
-          {settings.soloMode ? '🎮 Mode Solo' : '🏠 Lobby'}
-        </h1>
+        <h1>{settings.soloMode ? '🎮 Mode Solo' : '🏠 Lobby'}</h1>
         <div className="si-lobby__meta">
+          <button className="si-lobby__badge si-lobby__badge--copy" onClick={onCopyRoom}>
+            Room: <strong>{roomId}</strong> {copied ? '✅' : '📋'}
+          </button>
           <span className="si-lobby__badge">
-            Room: <strong>{roomId}</strong>
-          </span>
-          <span className="si-lobby__badge">
-            Joueurs: <strong>{players.length}</strong>
+            Joueurs: <strong>{activePlayers.length}</strong>
+            {players.filter((p) => p.isSpectator).length > 0 &&
+              ` + ${players.filter((p) => p.isSpectator).length} 👁️`}
           </span>
           {settings.soloMode && (
             <span className="si-lobby__badge si-lobby__badge--solo">Solo</span>
@@ -125,38 +136,47 @@ export function LobbyPage() {
                 min={6}
                 max={60}
                 value={settings.secondsPerQuestion}
-                onChange={(e) =>
-                  setSettings({ secondsPerQuestion: Number(e.target.value) })
-                }
+                onChange={(e) => setSettings({ secondsPerQuestion: Number(e.target.value) })}
               />
             </label>
-            <label>
-              Catégorie
-              <select
-                value={settings.category}
-                onChange={(e) => setSettings({ category: e.target.value })}
+
+            {/* Random all categories toggle */}
+            <div className="si-lobby__toggle-row">
+              <span>🎲 Toutes catégories</span>
+              <button
+                className={`si-lobby__toggle ${settings.randomAllCategories ? 'on' : ''}`}
+                onClick={() => setSettings({ randomAllCategories: !settings.randomAllCategories })}
+                type="button"
               >
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                {settings.randomAllCategories ? 'ON' : 'OFF'}
+              </button>
+            </div>
+
+            {!settings.randomAllCategories && (
+              <label>
+                Catégorie
+                <select
+                  value={settings.category}
+                  onChange={(e) => setSettings({ category: e.target.value })}
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
 
           <div className="si-lobby__actions">
-            <Button onClick={onStart} disabled={!canStart || !me}>
-              🚀 Démarrer la partie
+            <Button onClick={onStart} disabled={!canStart || !me || me.isSpectator}>
+              🚀 Démarrer
             </Button>
-            <Button variant="danger" onClick={onReset}>
-              ← Retour menu
-            </Button>
+            <Button variant="danger" onClick={onReset}>← Retour</Button>
           </div>
 
           {!settings.soloMode && (
             <p className="si-lobby__hint">
-              {readyCount}/{players.length} joueurs prêts — tous doivent être ready pour démarrer.
+              {readyCount}/{activePlayers.length} joueurs prêts
             </p>
           )}
         </Card>
