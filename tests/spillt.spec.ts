@@ -117,7 +117,7 @@ test.describe('🏠 Page d\'accueil', () => {
     await goHome(page);
     await fillName(page, 'TestUser');
     await fillRoom(page, 'ABC12');
-    await expect(page.locator('button:has-text("Rejoindre")')).toBeEnabled();
+   await expect(page.getByRole('button', { name: 'Rejoindre', exact: true })).toBeEnabled();
     await page.screenshot({ path: 'test-results/screenshots/home-join-enabled.png', fullPage: true });
   });
 

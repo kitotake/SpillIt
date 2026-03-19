@@ -4,11 +4,11 @@ import './SplashScreen.scss'
 export function SplashScreen({ onDone }: { onDone: () => void }) {
   const [fading, setFading] = useState(false)
 
-  useEffect(() => {
-    const t1 = setTimeout(() => setFading(true), 1400)
-    const t2 = setTimeout(onDone, 1900)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
-  }, [onDone])
+useEffect(() => {
+  const t1 = setTimeout(() => setFading(true), 1800)  // was 1400
+  const t2 = setTimeout(onDone, 2400)                  // was 1900
+  return () => { clearTimeout(t1); clearTimeout(t2) }
+}, [onDone])
 
   return (
     <div className={`si-splash ${fading ? 'si-splash--out' : ''}`}>
