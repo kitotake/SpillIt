@@ -41,6 +41,13 @@ export function LobbyPage() {
   const [copied, setCopied]         = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
 
+  // ─── Session guard: redirect to home if no session ──────────────────────
+  useEffect(() => {
+    if (!roomId || !playerName) {
+      navigate('/', { replace: true })
+    }
+  }, [roomId, playerName, navigate])
+
   // 🔍 Joueur courant
   const me = useMemo(
     () => players.find((p) => p.name === playerName),
@@ -107,6 +114,9 @@ export function LobbyPage() {
   }
 
   const amHost = isHost()
+
+  // Don't render if session is missing (guard above will redirect)
+  if (!roomId || !playerName) return null
 
   return (
     <div className="si-page si-lobby">
